@@ -1,0 +1,35 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-profit: #10b981; /* 涨/收益 绿 (Emerald 500) */
+  --color-loss: #ef4444; /* 跌/亏损 红 (Red 500) */
+  --color-brand-primary: #3b82f6; /* 主色调 (Blue 500) */
+  --color-card-bg: #1e293b; /* 暗黑看板卡片底色 */
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: #0f172a;
+  color: #e2e8f0;
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+}
+
+/* 细滚动条，贴合暗黑看板 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

@@ -259,64 +259,9 @@ python-dateutil>=2.9.0
 }
 ```
 
-### 6.4 容器化编排文件 (`docker-compose.yml`)---暂时不考虑容器
+### 6.4 部署方式（不使用容器）
 
-```yaml
-services:
-  postgres:
-    image: postgres:18.6-alpine
-    container_name: omninav-postgres
-    restart: always
-    environment:
-      POSTGRES_DB: omninav
-      POSTGRES_USER: omninav_admin
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-SecurePass2026!}
-    volumes:
-      - pgdata_18:/var/lib/postgresql/data
-    ports:
-      - '5432:5432'
-    command:
-      - 'postgres'
-      - '-c'
-      - 'shared_buffers=256MB'
-      - '-c'
-      - 'max_connections=100'
-
-  redis:
-    image: redis:8.10-alpine
-    container_name: omninav-redis
-    restart: always
-    ports:
-      - '6379:6379'
-
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: omninav-backend
-    restart: always
-    environment:
-      DATABASE_URL: postgresql+asyncpg://omninav_admin:${DB_PASSWORD:-SecurePass2026!}@postgres:5432/omninav
-      REDIS_URL: redis://redis:6379/0
-      FEISHU_WEBHOOK_URL: ${FEISHU_WEBHOOK_URL}
-    depends_on:
-      - postgres
-      - redis
-    ports:
-      - '8000:8000'
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: omninav-frontend
-    restart: always
-    ports:
-      - '80:80'
-
-volumes:
-  pgdata_18:
-```
+> **已确认（2026-09-02，设计决策 D7）：不采用 Docker 容器化部署。** 本机/私有服务器直接部署：PostgreSQL 18.6 与 Redis 8.10 由系统服务管理（macOS 用 `brew services`，Linux 用 systemd），后端 `uvicorn` 常驻，前端 `npm run build` 产物由静态服务器托管并反代 `/api`。
 
 ---
 

@@ -1,0 +1,21 @@
+# OmniNAV backend dependencies
+# 版本策略（已确认）：兼容优先于版本号——以下为下限约束，由 pip resolver
+# 选出一组互相兼容的最新稳定版；安装后以 requirements.lock.txt 固化。
+fastapi>=0.115.0
+pydantic>=2.9.0
+pydantic-settings>=2.6.0
+uvicorn[standard]>=0.32.0
+httpx>=0.27.0
+
+sqlalchemy>=2.0.36
+asyncpg>=0.30.0
+alembic>=1.14.0
+redis>=5.2.0
+
+pandas>=2.2.0
+numpy>=1.26.0
+akshare>=1.14.0
+yfinance>=0.2.50
+quantstats>=0.0.62
+apscheduler>=3.10.4
+python-dateutil>=2.9.0

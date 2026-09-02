@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# Node
+node_modules/
+frontend/dist/
+
+# 环境与密钥
+.env
+*.local
+
+# 数据库
+*.sqlite3
+*.dump
+
+# 编辑器/系统
+.DS_Store
+.idea/
+.vscode/
