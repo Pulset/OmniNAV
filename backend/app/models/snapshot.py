@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Date, Numeric, String, Text
+from sqlalchemy import BigInteger, Date, ForeignKey, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -10,6 +10,9 @@ from app.core.db import Base
 class FactPortfolioSnapshot(Base):
     __tablename__ = "fact_portfolio_snapshots"
 
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("sys_users.id"), primary_key=True
+    )
     snapshot_date: Mapped[date] = mapped_column(Date, primary_key=True)
     total_market_value_cny: Mapped[Decimal] = mapped_column(
         Numeric(18, 2), nullable=False

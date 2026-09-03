@@ -27,13 +27,16 @@ class AlertEvent:
 
 
 async def evaluate_eod_alerts(
-    session: AsyncSession, book: PriceBook, result: SettlementResult
+    session: AsyncSession, user_id: int, book: PriceBook, result: SettlementResult
 ) -> list[AlertEvent]:
-    """终局清算后按 sys_alert_rules 评估告警事件。"""
+    """终局清算后按该用户的 sys_alert_rules 评估告警事件。"""
     rules = (
         (
             await session.execute(
-                select(SysAlertRule).where(SysAlertRule.is_active.is_(True))
+                select(SysAlertRule).where(
+                    SysAlertRule.user_id == user_id,
+                    SysAlertRule.is_active.is_(True),
+                )
             )
         )
         .scalars()
@@ -62,7 +65,8 @@ async def evaluate_eod_alerts(
                 max_nav = (
                     await session.execute(
                         select(func.max(FactPortfolioSnapshot.unit_nav)).where(
-                            FactPortfolioSnapshot.snapshot_date <= target
+                            FactPortfolioSnapshot.user_id == user_id,
+                            FactPortfolioSnapshot.snapshot_date <= target,
                         )
                     )
                 ).scalar()

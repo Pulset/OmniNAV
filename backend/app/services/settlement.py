@@ -71,22 +71,26 @@ async def _load_price_book(session: AsyncSession, up_to: date) -> PriceBook:
 
 
 async def get_latest_snapshot(
-    session: AsyncSession, before: date
+    session: AsyncSession, user_id: int, before: date
 ) -> FactPortfolioSnapshot | None:
     return (
         await session.execute(
             select(FactPortfolioSnapshot)
-            .where(FactPortfolioSnapshot.snapshot_date < before)
+            .where(
+                FactPortfolioSnapshot.user_id == user_id,
+                FactPortfolioSnapshot.snapshot_date < before,
+            )
             .order_by(FactPortfolioSnapshot.snapshot_date.desc())
             .limit(1)
         )
     ).scalar_one_or_none()
 
 
-async def get_first_snapshot_date(session: AsyncSession) -> date | None:
+async def get_first_snapshot_date(session: AsyncSession, user_id: int) -> date | None:
     d = (
         await session.execute(
             select(FactPortfolioSnapshot.snapshot_date)
+            .where(FactPortfolioSnapshot.user_id == user_id)
             .order_by(FactPortfolioSnapshot.snapshot_date.asc())
             .limit(1)
         )
@@ -105,14 +109,17 @@ def _normalized_benchmark(
 
 
 async def run_settlement(
-    session: AsyncSession, target_date: date, *, persist: bool = True
+    session: AsyncSession, target_date: date, *, user_id: int, persist: bool = True
 ) -> SettlementResult | None:
-    """对 target_date 执行 NAV 清算。无任何流水时返回 None。"""
+    """对 target_date 执行某用户的 NAV 清算。该用户无任何流水时返回 None。"""
     txns = (
         (
             await session.execute(
                 select(FactTransaction)
-                .where(FactTransaction.trans_date <= target_date)
+                .where(
+                    FactTransaction.user_id == user_id,
+                    FactTransaction.trans_date <= target_date,
+                )
                 .order_by(FactTransaction.trans_date, FactTransaction.id)
             )
         )
@@ -125,7 +132,9 @@ async def run_settlement(
     assets = {
         a.asset_id: _to_asset_like(a)
         for a in (
-            await session.execute(select(DimAsset))
+            await session.execute(
+                select(DimAsset).where(DimAsset.user_id == user_id)
+            )
         ).scalars()
     }
 
@@ -160,7 +169,7 @@ async def run_settlement(
         lambda cur, d: book.fx_to_cny(cur, d),
     )
 
-    prev = await get_latest_snapshot(session, target_date)
+    prev = await get_latest_snapshot(session, user_id, target_date)
     yesterday_nav = Decimal(prev.unit_nav) if prev else ZERO
     yesterday_shares = Decimal(prev.total_shares) if prev else ZERO
     yesterday_mv = Decimal(prev.total_market_value_cny) if prev else ZERO
@@ -174,8 +183,8 @@ async def run_settlement(
         today_net_cash_flow=flow,
     )
 
-    # 基准指数归一化：以组合首个快照日（无则当日）为 1.0000 基点
-    base_date = (await get_first_snapshot_date(session)) or target_date
+    # 基准指数归一化：以该用户组合首个快照日（无则当日）为 1.0000 基点
+    base_date = (await get_first_snapshot_date(session, user_id)) or target_date
     csi300_nav = _normalized_benchmark(book, CSI300_SYMBOL, base_date, target_date)
     sp500_nav = _normalized_benchmark(book, SP500_SYMBOL, base_date, target_date)
     nasdaq_nav = _normalized_benchmark(book, NASDAQ_SYMBOL, base_date, target_date)
@@ -183,6 +192,7 @@ async def run_settlement(
     if persist:
         await _upsert_snapshot(
             session,
+            user_id,
             target_date,
             mv_today=mv_today,
             nav=nav,
@@ -209,6 +219,7 @@ async def run_settlement(
 
 async def _upsert_snapshot(
     session: AsyncSession,
+    user_id: int,
     target_date: date,
     *,
     mv_today: Decimal,
@@ -219,6 +230,7 @@ async def _upsert_snapshot(
 ) -> None:
     """幂等写入快照；重复跑批覆盖更新，但保留已录入的复盘日记。"""
     stmt = pg_insert(FactPortfolioSnapshot).values(
+        user_id=user_id,
         snapshot_date=target_date,
         total_market_value_cny=mv_today.quantize(Q2),
         unit_nav=nav.unit_nav,
@@ -230,7 +242,7 @@ async def _upsert_snapshot(
         nasdaq_nav=nasdaq_nav,
     )
     stmt = stmt.on_conflict_do_update(
-        index_elements=["snapshot_date"],
+        index_elements=["user_id", "snapshot_date"],
         set_={
             "total_market_value_cny": stmt.excluded.total_market_value_cny,
             "unit_nav": stmt.excluded.unit_nav,

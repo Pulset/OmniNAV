@@ -4,21 +4,27 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user
 from app.core.db import get_session
-from app.models import FactPortfolioSnapshot
+from app.models import FactPortfolioSnapshot, SysUser
 from app.services.metrics import compute_metric_summary
 
-router = APIRouter(prefix="/metrics", tags=["metrics"])
+router = APIRouter(
+    prefix="/metrics", tags=["metrics"], dependencies=[Depends(get_current_user)]
+)
 
 
 @router.get("/summary")
-async def metric_summary(session: AsyncSession = Depends(get_session)) -> dict:
+async def metric_summary(
+    user: SysUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
     snaps = (
         (
             await session.execute(
-                select(FactPortfolioSnapshot).order_by(
-                    FactPortfolioSnapshot.snapshot_date.asc()
-                )
+                select(FactPortfolioSnapshot)
+                .where(FactPortfolioSnapshot.user_id == user.id)
+                .order_by(FactPortfolioSnapshot.snapshot_date.asc())
             )
         )
         .scalars()

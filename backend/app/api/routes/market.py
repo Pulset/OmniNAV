@@ -7,23 +7,27 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user
 from app.core.db import get_session
 from app.jobs.scheduler import JOB_REGISTRY
-from app.models import DimAsset, FactDailyMarketData
+from app.models import DimAsset, FactDailyMarketData, SysUser
 from app.schemas import ManualNavIn, MarketPriceOut
 from app.services.market.fetcher import upsert_market_rows
 
-router = APIRouter(prefix="/market", tags=["market"])
+router = APIRouter(
+    prefix="/market", tags=["market"], dependencies=[Depends(get_current_user)]
+)
 
 
 @router.post("/manual-nav/{asset_id}", response_model=MarketPriceOut, status_code=201)
 async def upsert_manual_nav(
     asset_id: str,
     payload: ManualNavIn,
+    user: SysUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """净值型理财（MANUAL_NAV）手动录入最新单位净值。"""
-    asset = await session.get(DimAsset, asset_id)
+    asset = await session.get(DimAsset, (user.id, asset_id))
     if not asset:
         raise HTTPException(404, f"资产 {asset_id} 不存在")
     if asset.valuation_type != "MANUAL_NAV":

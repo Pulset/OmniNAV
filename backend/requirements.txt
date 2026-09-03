@@ -1,6 +1,7 @@
 # OmniNAV backend dependencies
 # 版本策略（已确认）：兼容优先于版本号——以下为下限约束，由 pip resolver
 # 选出一组互相兼容的最新稳定版；安装后以 requirements.lock.txt 固化。
+argon2-cffi>=23.1.0
 fastapi>=0.115.0
 pydantic>=2.9.0
 pydantic-settings>=2.6.0

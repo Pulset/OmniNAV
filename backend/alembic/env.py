@@ -16,6 +16,8 @@ from app.models import (  # noqa: F401 —— 注册全部模型到 metadata
     FactPortfolioSnapshot,
     FactTransaction,
     SysAlertRule,
+    SysUser,
+    UserSetting,
 )
 
 config = context.config

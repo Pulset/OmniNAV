@@ -7,6 +7,15 @@ from app.schemas.snapshot import (
     SnapshotNotesIn,
 )
 from app.schemas.transaction import TransactionCreate, TransactionOut
+from app.schemas.user import (
+    LoginIn,
+    NotificationsIn,
+    NotificationsOut,
+    PasswordChangeIn,
+    UserCreateIn,
+    UserOut,
+    UserUpdateIn,
+)
 
 __all__ = [
     "AssetCreate",
@@ -22,4 +31,11 @@ __all__ = [
     "AlertRuleCreate",
     "AlertRuleOut",
     "AlertRuleUpdate",
+    "LoginIn",
+    "PasswordChangeIn",
+    "UserCreateIn",
+    "UserUpdateIn",
+    "UserOut",
+    "NotificationsIn",
+    "NotificationsOut",
 ]

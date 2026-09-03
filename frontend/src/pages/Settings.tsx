@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Play, Plus, Trash2 } from 'lucide-react'
-import { api } from '../api/client'
-import type { AlertRule, Asset, RuleType } from '../api/types'
+import { KeyRound, Play, Plus, Send, Trash2 } from 'lucide-react'
+import { api, forceLogout } from '../api/client'
+import type { AlertRule, Asset, Notifications, RuleType } from '../api/types'
 
 const inputCls =
   'w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 outline-none focus:border-brand-primary'
@@ -23,13 +23,26 @@ export function Settings() {
   })
   const [running, setRunning] = useState('')
 
+  const [pwdForm, setPwdForm] = useState({ old_password: '', new_password: '' })
+  const [notifyForm, setNotifyForm] = useState({
+    feishu_webhook_url: '',
+    telegram_bot_token: '',
+    telegram_chat_id: '',
+  })
+
   const load = async () => {
-    const [a, r] = await Promise.all([
+    const [a, r, n] = await Promise.all([
       api.get<Asset[]>('/assets'),
       api.get<AlertRule[]>('/alert-rules'),
+      api.get<Notifications>('/auth/me/notifications'),
     ])
     setAssets(a)
     setRules(r)
+    setNotifyForm({
+      feishu_webhook_url: n.feishu_webhook_url ?? '',
+      telegram_bot_token: n.telegram_bot_token ?? '',
+      telegram_chat_id: n.telegram_chat_id ?? '',
+    })
   }
 
   useEffect(() => {
@@ -83,6 +96,28 @@ export function Settings() {
       setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) })
     } finally {
       setRunning('')
+    }
+  }
+
+  const changePassword = async () => {
+    setMsg(null)
+    try {
+      await api.put('/auth/me/password', pwdForm)
+      setMsg({ ok: true, text: '密码已修改，请重新登录' })
+      // 改密后服务端已吊销全部会话，统一回到登录页
+      setTimeout(forceLogout, 800)
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) })
+    }
+  }
+
+  const saveNotifications = async () => {
+    setMsg(null)
+    try {
+      await api.put('/auth/me/notifications', notifyForm)
+      setMsg({ ok: true, text: '通知渠道已保存' })
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) })
     }
   }
 
@@ -285,6 +320,78 @@ export function Settings() {
                   {running === job ? '执行中…' : label}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-800 bg-card-bg p-4">
+            <h3 className="mb-3 flex items-center gap-1.5 text-sm font-medium text-slate-300">
+              <KeyRound className="h-4 w-4" /> 修改密码
+            </h3>
+            <div className="grid grid-cols-3 gap-2">
+              <input
+                type="password"
+                className={inputCls}
+                placeholder="原密码"
+                value={pwdForm.old_password}
+                onChange={(e) => setPwdForm({ ...pwdForm, old_password: e.target.value })}
+              />
+              <input
+                type="password"
+                className={inputCls}
+                placeholder="新密码（至少 8 位）"
+                value={pwdForm.new_password}
+                onChange={(e) => setPwdForm({ ...pwdForm, new_password: e.target.value })}
+              />
+              <button
+                onClick={() => void changePassword()}
+                disabled={!pwdForm.old_password || pwdForm.new_password.length < 8}
+                className="rounded-lg bg-brand-primary px-3 text-sm font-medium text-white disabled:opacity-40"
+              >
+                保存
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-800 bg-card-bg p-4">
+            <h3 className="mb-1 flex items-center gap-1.5 text-sm font-medium text-slate-300">
+              <Send className="h-4 w-4" /> 我的通知渠道
+            </h3>
+            <p className="mb-3 text-[11px] text-slate-600">
+              清算/简报/告警推送到这里；两个渠道至少配置一个，否则仅记录日志。
+            </p>
+            <div className="space-y-2">
+              <input
+                className={inputCls}
+                placeholder="飞书 Webhook URL"
+                value={notifyForm.feishu_webhook_url}
+                onChange={(e) =>
+                  setNotifyForm({ ...notifyForm, feishu_webhook_url: e.target.value })
+                }
+              />
+              <div className="grid grid-cols-3 gap-2">
+                <input
+                  className={inputCls}
+                  placeholder="Telegram Bot Token"
+                  value={notifyForm.telegram_bot_token}
+                  onChange={(e) =>
+                    setNotifyForm({ ...notifyForm, telegram_bot_token: e.target.value })
+                  }
+                />
+                <input
+                  className={inputCls}
+                  placeholder="Telegram Chat ID"
+                  value={notifyForm.telegram_chat_id}
+                  onChange={(e) =>
+                    setNotifyForm({ ...notifyForm, telegram_chat_id: e.target.value })
+                  }
+                />
+                <button
+                  onClick={() => void saveNotifications()}
+                  className="rounded-lg bg-brand-primary px-3 text-sm font-medium text-white"
+                >
+                  保存
+                </button>
+              </div>
             </div>
           </div>
         </div>

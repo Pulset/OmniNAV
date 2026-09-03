@@ -1,6 +1,8 @@
 from app.api.routes import (
+    admin,
     alerts,
     assets,
+    auth,
     health,
     market,
     metrics,
@@ -11,6 +13,8 @@ from app.api.routes import (
 
 all_routers = [
     health.router,
+    auth.router,
+    admin.router,
     assets.router,
     transactions.router,
     market.router,

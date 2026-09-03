@@ -1,4 +1,4 @@
-"""组合实时视图：当前持仓估值（支持基准币种切换 CNY/USD）。"""
+"""组合实时视图：当前持仓估值（支持基准币种切换 CNY/USD）。数据按用户隔离。"""
 
 from datetime import date, datetime
 from decimal import Decimal, ROUND_HALF_UP
@@ -7,8 +7,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user
 from app.core.db import get_session
-from app.models import DimAsset, FactDailyMarketData, FactPortfolioSnapshot, FactTransaction
+from app.models import (
+    DimAsset,
+    FactDailyMarketData,
+    FactPortfolioSnapshot,
+    FactTransaction,
+    SysUser,
+)
 from app.schemas.portfolio import (
     HoldingsResponse,
     HoldingOut,
@@ -20,19 +27,35 @@ from app.services.portfolio import aggregate_diluted_cost, aggregate_holdings
 from app.services.settlement import _load_price_book, _to_asset_like
 from app.services.valuation import MissingPriceError, fx_symbol, value_asset
 
-router = APIRouter(prefix="/portfolio", tags=["portfolio"])
+router = APIRouter(
+    prefix="/portfolio", tags=["portfolio"], dependencies=[Depends(get_current_user)]
+)
 
 Q4 = Decimal("0.0001")
 Q2 = Decimal("0.01")
 
 
-async def _current_valuations(session: AsyncSession, as_of: date):
-    txns = (await session.execute(select(FactTransaction))).scalars().all()
+async def _current_valuations(
+    session: AsyncSession, user_id: int, as_of: date
+):
+    txns = (
+        (
+            await session.execute(
+                select(FactTransaction).where(FactTransaction.user_id == user_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
     holdings = aggregate_holdings(txns)
     diluted = aggregate_diluted_cost(txns)
     assets = {
         a.asset_id: _to_asset_like(a)
-        for a in (await session.execute(select(DimAsset))).scalars()
+        for a in (
+            await session.execute(
+                select(DimAsset).where(DimAsset.user_id == user_id)
+            )
+        ).scalars()
     }
     book = await _load_price_book(session, as_of)
     valuations = [
@@ -57,11 +80,12 @@ def _brief(snap: FactPortfolioSnapshot) -> SnapshotBrief:
 @router.get("/holdings", response_model=HoldingsResponse)
 async def get_holdings(
     base: str = Query(default="CNY", pattern=r"^(CNY|USD)$"),
+    user: SysUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     as_of = date.today()
     try:
-        book, valuations = await _current_valuations(session, as_of)
+        book, valuations = await _current_valuations(session, user.id, as_of)
         base_rate = (
             Decimal("1")
             if base == "CNY"
@@ -123,21 +147,27 @@ async def get_holdings(
 @router.get("/summary", response_model=SummaryResponse)
 async def get_summary(
     base: str = Query(default="CNY", pattern=r"^(CNY|USD)$"),
+    user: SysUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     snaps = (
         (
             await session.execute(
-                select(FactPortfolioSnapshot).order_by(
-                    FactPortfolioSnapshot.snapshot_date.desc()
-                ).limit(2)
+                select(FactPortfolioSnapshot)
+                .where(FactPortfolioSnapshot.user_id == user.id)
+                .order_by(FactPortfolioSnapshot.snapshot_date.desc())
+                .limit(2)
             )
         )
         .scalars()
         .all()
     )
     count = (
-        await session.execute(select(FactPortfolioSnapshot.snapshot_date))
+        await session.execute(
+            select(FactPortfolioSnapshot.snapshot_date).where(
+                FactPortfolioSnapshot.user_id == user.id
+            )
+        )
     ).scalars()
     return SummaryResponse(
         base_currency=base,

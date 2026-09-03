@@ -4,6 +4,21 @@ export type ValuationType = 'MARKET' | 'FIXED_YIELD' | 'MANUAL_NAV' | 'CASH'
 export type TransType = 'BUY' | 'SELL' | 'DEPOSIT' | 'WITHDRAW' | 'DIVIDEND'
 export type RuleType = 'DAILY_PCT_CHANGE' | 'DRAWDOWN'
 export type BaseCurrency = 'CNY' | 'USD'
+export type UserRole = 'admin' | 'member'
+
+export interface User {
+  id: number
+  username: string
+  role: UserRole
+  is_active: boolean
+  created_at: string
+}
+
+export interface Notifications {
+  feishu_webhook_url: string | null
+  telegram_bot_token: string | null
+  telegram_chat_id: string | null
+}
 
 export interface Asset {
   asset_id: string

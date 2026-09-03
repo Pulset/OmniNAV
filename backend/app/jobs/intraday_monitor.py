@@ -1,11 +1,12 @@
-"""盘中微监控 Job：交易日 09:30–23:00 每 15 分钟轮询持仓实时行情。
+"""盘中微监控 Job：交易日 09:30–23:00 每 15 分钟轮询持仓实时行情（MultiUser §5.1）。
 
-命中 DAILY_PCT_CHANGE 告警阈值即推送（Redis 锁保证单标的当日只推一次）。
+行情簿全局载入一次；监控与推送按活跃用户循环，告警去重锁带用户前缀
+（intraday:{user_id}:{asset_id}），单用户失败不中断他人。
 """
 
 import asyncio
 import logging
-from datetime import datetime, time
+from datetime import datetime, time, date
 from decimal import Decimal, ROUND_HALF_UP
 from zoneinfo import ZoneInfo
 
@@ -13,11 +14,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import SessionLocal
-from app.models import DimAsset, FactTransaction, SysAlertRule
+from app.models import DimAsset, FactTransaction, SysAlertRule, SysUser
 from app.services.market.cache import QuoteCache
 from app.services.nav import ZERO
-from app.services.notify import notify_all
+from app.services.notify import notify_user
 from app.services.portfolio import aggregate_holdings
+from app.services.settlement import _load_price_book
 from app.services.valuation import PriceBook
 
 logger = logging.getLogger(__name__)
@@ -53,11 +55,85 @@ async def _fetch_realtime(symbol: str) -> Decimal | None:
     return await asyncio.to_thread(provider.fetch_realtime, symbol)
 
 
-async def _load_realtime_book(session: AsyncSession) -> PriceBook:
-    from app.services.settlement import _load_price_book
-    from datetime import date
+async def _monitor_for_user(
+    session: AsyncSession,
+    user: SysUser,
+    book: PriceBook,
+    cache: QuoteCache,
+    now: datetime,
+) -> None:
+    rules = (
+        (
+            await session.execute(
+                select(SysAlertRule).where(
+                    SysAlertRule.user_id == user.id,
+                    SysAlertRule.is_active.is_(True),
+                    SysAlertRule.rule_type == "DAILY_PCT_CHANGE",
+                    SysAlertRule.asset_id.is_not(None),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not rules:
+        return
 
-    return await _load_price_book(session, date.today())
+    txns = (
+        (
+            await session.execute(
+                select(FactTransaction).where(FactTransaction.user_id == user.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    holdings = aggregate_holdings(txns)
+    if not holdings:
+        return
+    assets = {
+        a.asset_id: a
+        for a in (
+            await session.execute(
+                select(DimAsset).where(DimAsset.user_id == user.id)
+            )
+        ).scalars()
+    }
+
+    alerts: list[str] = []
+    for rule in rules:
+        asset_id = rule.asset_id
+        if asset_id not in holdings or asset_id not in assets:
+            continue
+        asset = assets[asset_id]
+        price = await cache.get_quote(asset_id)
+        if price is None:
+            price = await _fetch_realtime(asset_id)
+        if price is None:
+            continue
+        await cache.set_quote(asset_id, price)
+
+        prev = book.close(asset_id, now.date())
+        if prev is None or prev == ZERO:
+            continue
+        pct = (price / prev - 1).quantize(Q4, ROUND_HALF_UP)
+        threshold = Decimal(rule.threshold)
+        if abs(pct) >= threshold:
+            locked = await cache.try_lock(f"intraday:{user.id}:{asset_id}")
+            if locked:
+                alerts.append(
+                    f"{asset.name}({asset_id}) 盘中 {pct:+.2%}，"
+                    f"触发阈值 ±{threshold:.0%}（现价 {price}）"
+                )
+
+    if alerts:
+        await notify_user(
+            session,
+            user.id,
+            f"{now.date().isoformat()} 盘中异动告警",
+            [f"🚨 **{a}**" for a in alerts],
+            alert=True,
+        )
 
 
 async def intraday_monitor_job() -> None:
@@ -66,63 +142,19 @@ async def intraday_monitor_job() -> None:
         return
 
     async with SessionLocal() as session:
-        rules = (
+        book = await _load_price_book(session, date.today())
+        cache = QuoteCache()
+        users = (
             (
                 await session.execute(
-                    select(SysAlertRule).where(
-                        SysAlertRule.is_active.is_(True),
-                        SysAlertRule.rule_type == "DAILY_PCT_CHANGE",
-                        SysAlertRule.asset_id.is_not(None),
-                    )
+                    select(SysUser).where(SysUser.is_active.is_(True))
                 )
             )
             .scalars()
             .all()
         )
-        if not rules:
-            return
-
-        txns = (await session.execute(select(FactTransaction))).scalars().all()
-        holdings = aggregate_holdings(txns)
-        if not holdings:
-            return
-        assets = {
-            a.asset_id: a
-            for a in (await session.execute(select(DimAsset))).scalars()
-        }
-
-        book = await _load_realtime_book(session)
-        cache = QuoteCache()
-        alerts: list[str] = []
-
-        for rule in rules:
-            asset_id = rule.asset_id
-            if asset_id not in holdings or asset_id not in assets:
-                continue
-            asset = assets[asset_id]
-            price = await cache.get_quote(asset_id)
-            if price is None:
-                price = await _fetch_realtime(asset_id)
-            if price is None:
-                continue
-            await cache.set_quote(asset_id, price)
-
-            prev = book.close(asset_id, datetime.now(CST).date())
-            if prev is None or prev == ZERO:
-                continue
-            pct = (price / prev - 1).quantize(Q4, ROUND_HALF_UP)
-            threshold = Decimal(rule.threshold)
-            if abs(pct) >= threshold:
-                locked = await cache.try_lock(f"intraday:{asset_id}")
-                if locked:
-                    alerts.append(
-                        f"{asset.name}({asset_id}) 盘中 {pct:+.2%}，"
-                        f"触发阈值 ±{threshold:.0%}（现价 {price}）"
-                    )
-
-        if alerts:
-            await notify_all(
-                f"{now.date().isoformat()} 盘中异动告警",
-                [f"🚨 **{a}**" for a in alerts],
-                alert=True,
-            )
+        for user in users:
+            try:
+                await _monitor_for_user(session, user, book, cache, now)
+            except Exception:
+                logger.exception("user=%s(%s) 盘中监控失败，跳过", user.id, user.username)

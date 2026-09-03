@@ -7,6 +7,7 @@ Personal Multi-Asset Portfolio & Review System —— 个人全资产投资分�
 - 产品需求：[docs/PRD.md](docs/PRD.md)
 - 技术架构：[docs/TechnicalArchitecture.md](docs/TechnicalArchitecture.md)
 - 开发计划与设计决策：[docs/DevelopmentPlan.md](docs/DevelopmentPlan.md)
+- 多用户账号管理与数据隔离方案：[docs/MultiUser.md](docs/MultiUser.md)
 
 ## 架构
 

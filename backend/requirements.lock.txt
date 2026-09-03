@@ -1,4 +1,6 @@
 akshare==1.18.94
+argon2-cffi==25.1.0
+argon2-cffi-bindings==26.1.0
 alembic==1.19.1
 annotated-doc==0.0.5
 annotated-types==0.8.0

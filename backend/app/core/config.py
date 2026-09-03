@@ -26,6 +26,13 @@ class Settings(BaseSettings):
     # 盘中行情缓存 TTL（秒），防止外部 API 限流
     quote_cache_ttl_seconds: int = 600
 
+    # 首管理员 seed（sys_users 为空时由迁移 0003 创建；不开放公开注册）
+    init_admin_username: str = "admin"
+    init_admin_password: str | None = None
+
+    # 会话 Cookie：生产前置 HTTPS 时置 true
+    cookie_secure: bool = False
+
 
 @lru_cache
 def get_settings() -> Settings:

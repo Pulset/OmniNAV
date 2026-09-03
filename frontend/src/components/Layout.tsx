@@ -2,12 +2,16 @@ import {
   BookOpen,
   Layers,
   LayoutDashboard,
+  LogOut,
   ReceiptText,
   Settings2,
   TrendingUp,
+  Users,
   Wallet,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { api } from '../api/client'
+import type { User } from '../api/types'
 import { cn } from '../lib/format'
 import { useSettings } from '../store/settings'
 
@@ -20,16 +24,39 @@ const NAV_ITEMS = [
   { key: 'settings', label: '设置', icon: Settings2 },
 ] as const
 
-export type PageKey = (typeof NAV_ITEMS)[number]['key']
+const ADMIN_NAV_ITEMS = [{ key: 'users', label: '用户', icon: Users }] as const
+
+export type PageKey =
+  | (typeof NAV_ITEMS)[number]['key']
+  | (typeof ADMIN_NAV_ITEMS)[number]['key']
 
 interface Props {
   page: PageKey
   onNavigate: (page: PageKey) => void
+  user: User
+  onLogout: () => void
   children: ReactNode
 }
 
-export function Layout({ page, onNavigate, children }: Props) {
+export function Layout({ page, onNavigate, user, onLogout, children }: Props) {
   const { baseCurrency, setBaseCurrency } = useSettings()
+
+  const logout = async () => {
+    try {
+      await api.post('/auth/logout')
+    } catch {
+      /* 会话已失效也照常回到登录页 */
+    }
+    onLogout()
+  }
+
+  const navButtonCls = (active: boolean) =>
+    cn(
+      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+      active
+        ? 'bg-brand-primary/15 text-brand-primary'
+        : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200',
+    )
 
   return (
     <div className="flex h-full">
@@ -44,23 +71,36 @@ export function Layout({ page, onNavigate, children }: Props) {
 
         <nav className="mt-2 flex flex-col gap-1 px-3">
           {NAV_ITEMS.map(({ key, label, icon: Icon }) => (
-            <button
-              key={key}
-              onClick={() => onNavigate(key)}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
-                page === key
-                  ? 'bg-brand-primary/15 text-brand-primary'
-                  : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200',
-              )}
-            >
+            <button key={key} onClick={() => onNavigate(key)} className={navButtonCls(page === key)}>
               <Icon className="h-4 w-4" />
               {label}
             </button>
           ))}
+          {user.role === 'admin' &&
+            ADMIN_NAV_ITEMS.map(({ key, label, icon: Icon }) => (
+              <button key={key} onClick={() => onNavigate(key)} className={navButtonCls(page === key)}>
+                <Icon className="h-4 w-4" />
+                {label}
+              </button>
+            ))}
         </nav>
 
         <div className="mt-auto p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <div className="min-w-0">
+              <div className="truncate text-xs text-slate-300">{user.username}</div>
+              <div className="text-[10px] text-slate-600">
+                {user.role === 'admin' ? '管理员' : '成员'}
+              </div>
+            </div>
+            <button
+              onClick={() => void logout()}
+              title="退出登录"
+              className="rounded p-1 text-slate-600 hover:text-slate-300"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          </div>
           <div className="mb-2 text-[10px] uppercase tracking-wider text-slate-500">
             基准币种
           </div>

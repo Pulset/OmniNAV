@@ -46,6 +46,7 @@ app.add_middleware(
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_credentials=True,  # Cookie 会话跨端口开发联调必需；生产同源不依赖 CORS
 )
 
 for router in all_routers:
