@@ -72,17 +72,27 @@ export function Settings() {
     }
   }
 
-  const runJob = async (job: string) => {
+  const runJob = async (job: string, targetDate?: string) => {
     setRunning(job)
     setMsg(null)
     try {
-      await api.post(`/market/jobs/run/${job}`)
+      const qs = targetDate ? `?target_date=${targetDate}` : ''
+      await api.post(`/market/jobs/run/${job}${qs}`)
       setMsg({ ok: true, text: `${job} 执行完成` })
     } catch (e) {
       setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) })
     } finally {
       setRunning('')
     }
+  }
+
+  // 本月最后一个工作日（月报手动触发时跳过「最后交易日」自检）
+  const lastTradingDayOfMonth = () => {
+    const last = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
+    while (last.getDay() === 0 || last.getDay() === 6) last.setDate(last.getDate() - 1)
+    const m = String(last.getMonth() + 1).padStart(2, '0')
+    const d = String(last.getDate()).padStart(2, '0')
+    return `${last.getFullYear()}-${m}-${d}`
   }
 
   const manualNavAssets = assets.filter((a) => a.valuation_type === 'MANUAL_NAV')
@@ -256,15 +266,18 @@ export function Settings() {
             <p className="mb-3 text-[11px] text-slate-600">
               与定时调度等价，用于调试与补算（清算请传目标日期，默认昨日）。
             </p>
-            <div className="flex gap-2">
-              {[
-                ['eod_settlement', '06:00 终局清算'],
-                ['evening_brief', '22:00 A股简报'],
-                ['intraday_monitor', '盘中监控'],
-              ].map(([job, label]) => (
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ['eod_settlement', '06:00 终局清算', undefined],
+                  ['evening_brief', '22:00 A股简报', undefined],
+                  ['intraday_monitor', '盘中监控', undefined],
+                  ['monthly_report', '月度报告', lastTradingDayOfMonth()],
+                ] as [string, string, string | undefined][]
+              ).map(([job, label, targetDate]) => (
                 <button
                   key={job}
-                  onClick={() => void runJob(job)}
+                  onClick={() => void runJob(job, targetDate)}
                   disabled={!!running}
                   className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-300 transition-colors hover:border-brand-primary hover:text-brand-primary disabled:opacity-40"
                 >

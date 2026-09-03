@@ -23,12 +23,12 @@ export function fmtPct(v: string | number | null | undefined, digits = 2): strin
   return `${sign}${(n * 100).toFixed(digits)}%`
 }
 
-/** 数值正负着色（涨绿跌红） */
+/** 数值正负着色（A股习惯：涨红跌绿） */
 export function pnlColor(v: string | number | null | undefined): string {
   if (v === null || v === undefined) return 'text-slate-400'
   const n = typeof v === 'string' ? parseFloat(v) : v
   if (Number.isNaN(n) || n === 0) return 'text-slate-400'
-  return n > 0 ? 'text-profit' : 'text-loss'
+  return n > 0 ? 'text-up' : 'text-down'
 }
 
 export const CLASS_LABELS: Record<string, string> = {
@@ -43,6 +43,13 @@ export const MARKET_LABELS: Record<string, string> = {
   HK: '港股',
   US: '美股',
   GLOBAL: '全球',
+}
+
+export const VALUATION_LABELS: Record<string, string> = {
+  MARKET: '市价估值',
+  FIXED_YIELD: '固定收益',
+  MANUAL_NAV: '手动净值',
+  CASH: '现金恒定',
 }
 
 export const TRANS_LABELS: Record<string, string> = {

@@ -15,6 +15,7 @@ class SnapshotOut(BaseModel):
     daily_return: Decimal
     csi300_nav: Decimal | None
     sp500_nav: Decimal | None
+    nasdaq_nav: Decimal | None
     review_notes: str | None
 
 
@@ -29,5 +30,6 @@ class NavHistoryPoint(BaseModel):
     nav: Decimal
     csi300_nav: Decimal | None = None
     sp500_nav: Decimal | None = None
+    nasdaq_nav: Decimal | None = None
     total_mv_cny: Decimal
     daily_return: Decimal

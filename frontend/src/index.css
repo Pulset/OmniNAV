@@ -1,8 +1,10 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-profit: #10b981; /* 涨/收益 绿 (Emerald 500) */
-  --color-loss: #ef4444; /* 跌/亏损 红 (Red 500) */
+  --color-up: #ef4444; /* 涨 红 (Red 500，A股习惯红涨绿跌) */
+  --color-down: #10b981; /* 跌 绿 (Emerald 500) */
+  --color-profit: #10b981; /* 成功/正向提示 绿 */
+  --color-loss: #ef4444; /* 失败/风险提示 红 */
   --color-brand-primary: #3b82f6; /* 主色调 (Blue 500) */
   --color-card-bg: #1e293b; /* 暗黑看板卡片底色 */
 }

@@ -13,7 +13,7 @@ from app.services.market.akshare_provider import AkshareProvider
 from app.services.market.base import DailyBars, ProviderError
 from app.services.market.fx_provider import FrankfurterFxProvider
 from app.services.market.yfinance_provider import YFinanceProvider
-from app.services.settlement import CSI300_SYMBOL, SP500_SYMBOL
+from app.services.settlement import CSI300_SYMBOL, NASDAQ_SYMBOL, SP500_SYMBOL
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +50,9 @@ async def held_market_symbols(session: AsyncSession) -> list[str]:
         .scalars()
         .all()
     )
+    benchmarks = [CSI300_SYMBOL, SP500_SYMBOL, NASDAQ_SYMBOL]
     if not asset_ids:
-        return [CSI300_SYMBOL, SP500_SYMBOL]
+        return benchmarks
     assets = {
         a.asset_id: a
         for a in (
@@ -65,7 +66,7 @@ async def held_market_symbols(session: AsyncSession) -> list[str]:
         for aid in asset_ids
         if aid in assets and assets[aid].valuation_type == "MARKET"
     ]
-    return symbols + [CSI300_SYMBOL, SP500_SYMBOL]
+    return symbols + benchmarks
 
 
 async def fetch_latest_market_data(session: AsyncSession, as_of: date) -> None:

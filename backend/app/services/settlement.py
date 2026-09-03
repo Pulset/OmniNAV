@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 CSI300_SYMBOL = "CSI300"
 SP500_SYMBOL = "SP500"
+NASDAQ_SYMBOL = "NASDAQ"
 
 
 @dataclass
@@ -40,6 +41,7 @@ class SettlementResult:
     mv_before_flow: Decimal
     csi300_nav: Decimal | None
     sp500_nav: Decimal | None
+    nasdaq_nav: Decimal | None
     persisted: bool
 
 
@@ -169,6 +171,7 @@ async def run_settlement(
     base_date = (await get_first_snapshot_date(session)) or target_date
     csi300_nav = _normalized_benchmark(book, CSI300_SYMBOL, base_date, target_date)
     sp500_nav = _normalized_benchmark(book, SP500_SYMBOL, base_date, target_date)
+    nasdaq_nav = _normalized_benchmark(book, NASDAQ_SYMBOL, base_date, target_date)
 
     if persist:
         await _upsert_snapshot(
@@ -178,6 +181,7 @@ async def run_settlement(
             nav=nav,
             csi300_nav=csi300_nav,
             sp500_nav=sp500_nav,
+            nasdaq_nav=nasdaq_nav,
         )
         await session.commit()
 
@@ -191,6 +195,7 @@ async def run_settlement(
         mv_before_flow=mv_before_flow,
         csi300_nav=csi300_nav,
         sp500_nav=sp500_nav,
+        nasdaq_nav=nasdaq_nav,
         persisted=persist,
     )
 
@@ -203,6 +208,7 @@ async def _upsert_snapshot(
     nav: NavResult,
     csi300_nav: Decimal | None,
     sp500_nav: Decimal | None,
+    nasdaq_nav: Decimal | None,
 ) -> None:
     """幂等写入快照；重复跑批覆盖更新，但保留已录入的复盘日记。"""
     stmt = pg_insert(FactPortfolioSnapshot).values(
@@ -214,6 +220,7 @@ async def _upsert_snapshot(
         daily_return=nav.daily_return,
         csi300_nav=csi300_nav,
         sp500_nav=sp500_nav,
+        nasdaq_nav=nasdaq_nav,
     )
     stmt = stmt.on_conflict_do_update(
         index_elements=["snapshot_date"],
@@ -225,6 +232,7 @@ async def _upsert_snapshot(
             "daily_return": stmt.excluded.daily_return,
             "csi300_nav": stmt.excluded.csi300_nav,
             "sp500_nav": stmt.excluded.sp500_nav,
+            "nasdaq_nav": stmt.excluded.nasdaq_nav,
             # review_notes 不在 set_ 中：清算不覆盖人工日记
         },
     )

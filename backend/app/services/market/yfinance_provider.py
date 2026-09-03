@@ -8,7 +8,7 @@ from app.services.market.base import DailyBars, ProviderError
 
 logger = logging.getLogger(__name__)
 
-_YF_MAP = {"SP500": "^GSPC"}
+_YF_MAP = {"SP500": "^GSPC", "NASDAQ": "^IXIC"}
 
 
 def _yf_symbol(symbol: str) -> str:
@@ -24,7 +24,11 @@ def _yf_symbol(symbol: str) -> str:
 
 class YFinanceProvider:
     def supports(self, symbol: str) -> bool:
-        return symbol.endswith(".US") or symbol == "SP500" or symbol.endswith(".HK")
+        return (
+            symbol.endswith(".US")
+            or symbol in _YF_MAP  # SP500 / NASDAQ 指数
+            or symbol.endswith(".HK")
+        )
 
     def fetch_daily(self, symbol: str, start: date, end: date) -> DailyBars:
         import yfinance as yf
@@ -43,6 +47,8 @@ class YFinanceProvider:
         bars: list[tuple[date, Decimal]] = []
         for idx, close in zip(df.index.tolist(), df["Close"].tolist(), strict=False):
             try:
+                if close is None or close != close:  # NaN 缺数日跳过
+                    continue
                 day = idx.date() if hasattr(idx, "date") else date.fromisoformat(str(idx)[:10])
                 px = Decimal(str(close)).quantize(Decimal("0.0001"))
             except (ValueError, TypeError, InvalidOperation):

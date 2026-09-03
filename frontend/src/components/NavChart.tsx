@@ -1,44 +1,70 @@
 import { useMemo, useState } from 'react'
 import type { EChartsOption } from 'echarts'
 import type { Snapshot } from '../api/types'
+import { fmtPct, pnlColor } from '../lib/format'
 import { EChart } from './EChart'
 
 const RANGES = [
-  { key: '1M', days: 30 },
-  { key: '3M', days: 90 },
-  { key: '6M', days: 180 },
-  { key: '1Y', days: 365 },
-  { key: 'ALL', days: Infinity },
+  { key: '1M', months: 1 },
+  { key: '3M', months: 3 },
+  { key: '6M', months: 6 },
+  { key: '1Y', months: 12 },
+  { key: 'ALL', months: Infinity },
 ] as const
+
+const SERIES = [
+  { key: 'unit_nav' as const, name: '组合净值', color: '#3b82f6' },
+  { key: 'csi300_nav' as const, name: '沪深300', color: '#f59e0b' },
+  { key: 'sp500_nav' as const, name: '标普500', color: '#a78bfa' },
+  { key: 'nasdaq_nav' as const, name: '纳斯达克', color: '#f472b6' },
+]
 
 interface Props {
   snapshots: Snapshot[]
 }
 
-/** 组合净值 vs 沪深300 vs 标普500 归一化曲线（起点 1.0）。 */
+/** 组合净值 vs 沪深300 vs 标普500 归一化曲线（起点 1.0），图例带区间累计涨幅。 */
 export function NavChart({ snapshots }: Props) {
   const [range, setRange] = useState<(typeof RANGES)[number]['key']>('ALL')
 
-  const option = useMemo<EChartsOption>(() => {
-    const days = RANGES.find((r) => r.key === range)!.days
-    const filtered =
-      days === Infinity
-        ? snapshots
-        : snapshots.slice(Math.max(0, snapshots.length - days))
+  const { option, returns } = useMemo(() => {
+    const months = RANGES.find((r) => r.key === range)!.months
 
-    const dates = filtered.map((s) => s.snapshot_date)
-    const mk = (key: 'unit_nav' | 'csi300_nav' | 'sp500_nav') =>
-      filtered.map((s) => (s[key] === null ? null : parseFloat(s[key] as string)))
+    // 区间口径与主流行情 App 一致：起点 = 最新快照日往前 N 个日历月，
+    // 基准价取「不晚于该日」的最近一条快照（前收语义），避免吞掉起点的当日涨跌。
+    let baseSnap: Snapshot | undefined
+    let window = snapshots
+    if (snapshots.length && months !== Infinity) {
+      const latest = snapshots[snapshots.length - 1].snapshot_date
+      const cut = new Date(latest + 'T00:00:00')
+      cut.setMonth(cut.getMonth() - months)
+      const cutoff = `${cut.getFullYear()}-${String(cut.getMonth() + 1).padStart(2, '0')}-${String(cut.getDate()).padStart(2, '0')}`
+      const i0 = snapshots.findIndex((s) => s.snapshot_date > cutoff)
+      baseSnap = i0 > 0 ? snapshots[i0 - 1] : undefined
+      window = i0 >= 0 ? snapshots.slice(i0) : snapshots
+    }
 
-    return {
+    const dates = window.map((s) => s.snapshot_date)
+    const seriesData = SERIES.map((s) =>
+      window.map((x) => (x[s.key] === null ? null : parseFloat(x[s.key] as string))),
+    )
+
+    // 区间累计涨幅：末值 / 基准值（基准快照缺该序列时回退窗口内首个非空值）
+    const pct = (
+      key: (typeof SERIES)[number]['key'],
+    ): number | null => {
+      const baseVal =
+        baseSnap && baseSnap[key] !== null ? parseFloat(baseSnap[key] as string) : null
+      const vals = seriesData[SERIES.findIndex((s) => s.key === key)]
+      const first = baseVal ?? vals.find((v) => v !== null) ?? null
+      const last = [...vals].reverse().find((v) => v !== null) ?? null
+      return first && last && first !== 0 ? last / first - 1 : null
+    }
+
+    const option: EChartsOption = {
       backgroundColor: 'transparent',
       tooltip: { trigger: 'axis', backgroundColor: '#1e293b', borderColor: '#334155', textStyle: { color: '#e2e8f0', fontSize: 12 } },
-      legend: {
-        data: ['组合净值', '沪深300', '标普500'],
-        textStyle: { color: '#94a3b8', fontSize: 12 },
-        top: 0,
-      },
-      grid: { left: 50, right: 20, top: 36, bottom: 48 },
+      grid: { left: 50, right: 20, top: 16, bottom: 48 },
       xAxis: {
         type: 'category',
         data: dates,
@@ -52,11 +78,20 @@ export function NavChart({ snapshots }: Props) {
         axisLabel: { color: '#64748b', fontSize: 11, formatter: (v: number) => v.toFixed(2) },
       },
       dataZoom: [{ type: 'inside' }, { type: 'slider', height: 16, bottom: 8, borderColor: '#334155', backgroundColor: '#0f172a' }],
-      series: [
-        { name: '组合净值', type: 'line', data: mk('unit_nav'), showSymbol: false, lineWidth: 2, lineStyle: { width: 2, color: '#3b82f6' }, itemStyle: { color: '#3b82f6' }, emphasis: { focus: 'series' } },
-        { name: '沪深300', type: 'line', data: mk('csi300_nav'), showSymbol: false, lineStyle: { width: 1.2, color: '#f59e0b' }, itemStyle: { color: '#f59e0b' }, emphasis: { focus: 'series' } },
-        { name: '标普500', type: 'line', data: mk('sp500_nav'), showSymbol: false, lineStyle: { width: 1.2, color: '#a78bfa' }, itemStyle: { color: '#a78bfa' }, emphasis: { focus: 'series' } },
-      ],
+      series: SERIES.map((s, i) => ({
+        name: s.name,
+        type: 'line' as const,
+        data: seriesData[i],
+        showSymbol: false,
+        lineStyle: { width: s.key === 'unit_nav' ? 2 : 1.2, color: s.color },
+        itemStyle: { color: s.color },
+        emphasis: { focus: 'series' },
+      })),
+    }
+
+    return {
+      option,
+      returns: SERIES.map((s) => ({ name: s.name, color: s.color, pct: pct(s.key) })),
     }
   }, [snapshots, range])
 
@@ -80,6 +115,15 @@ export function NavChart({ snapshots }: Props) {
             </button>
           ))}
         </div>
+      </div>
+      <div className="mb-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+        {returns.map((r) => (
+          <span key={r.name} className="flex items-center gap-1.5">
+            <span className="inline-block h-2 w-2 rounded-full" style={{ background: r.color }} />
+            <span className="text-slate-400">{r.name}</span>
+            <span className={'tabular-nums ' + pnlColor(r.pct)}>{fmtPct(r.pct)}</span>
+          </span>
+        ))}
       </div>
       <div className="h-80">
         <EChart option={option} />

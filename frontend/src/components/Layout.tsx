@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  Layers,
   LayoutDashboard,
   ReceiptText,
   Settings2,
@@ -12,6 +13,7 @@ import { useSettings } from '../store/settings'
 
 const NAV_ITEMS = [
   { key: 'dashboard', label: '总览', icon: LayoutDashboard },
+  { key: 'assets', label: '资产', icon: Layers },
   { key: 'holdings', label: '持仓', icon: Wallet },
   { key: 'transactions', label: '流水', icon: ReceiptText },
   { key: 'review', label: '复盘', icon: BookOpen },

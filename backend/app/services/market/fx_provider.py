@@ -15,19 +15,19 @@ from app.services.valuation import fx_symbol
 
 logger = logging.getLogger(__name__)
 
-_BASE_URL = "https://api.frankfurter.app"
+_BASE_URL = "https://api.frankfurter.dev/v1"
 _CURRENCIES = ("USD", "HKD")
 
 
 class FrankfurterFxProvider:
     async def fetch_range(self, start: date, end: date) -> list[tuple[date, str, Decimal]]:
         rows: list[tuple[date, str, Decimal]] = []
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
             for currency in _CURRENCIES:
                 try:
                     resp = await client.get(
                         f"{_BASE_URL}/{start.isoformat()}..{end.isoformat()}",
-                        params={"from": currency, "to": "CNY"},
+                        params={"base": currency, "symbols": "CNY"},
                     )
                     resp.raise_for_status()
                     payload = resp.json()

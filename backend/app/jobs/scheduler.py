@@ -2,6 +2,7 @@
 
 - 22:00 A股日终简报 / 06:00 终局清算：cron 单点触发
 - 盘中微监控：交易日 09:00–23:00 每 15 分钟（Job 内自检 09:30 窗口）
+- 月度报告：每工作日 20:00 触发（Job 内自检「本月最后一个交易日」）
 """
 
 import logging
@@ -13,6 +14,7 @@ from apscheduler.triggers.cron import CronTrigger
 from app.jobs.eod_settlement import eod_settlement_job
 from app.jobs.evening_brief import evening_brief_job
 from app.jobs.intraday_monitor import intraday_monitor_job
+from app.jobs.monthly_report import monthly_report_job
 
 logger = logging.getLogger(__name__)
 CST = ZoneInfo("Asia/Shanghai")
@@ -21,6 +23,7 @@ JOB_REGISTRY = {
     "eod_settlement": eod_settlement_job,
     "evening_brief": evening_brief_job,
     "intraday_monitor": intraday_monitor_job,
+    "monthly_report": monthly_report_job,
 }
 
 
@@ -48,5 +51,13 @@ def build_scheduler() -> AsyncIOScheduler:
         id="intraday_monitor",
         coalesce=True,
         max_instances=1,
+    )
+    scheduler.add_job(
+        monthly_report_job,
+        CronTrigger(day_of_week="mon-fri", hour=20, minute=0, timezone=CST),
+        id="monthly_report",
+        coalesce=True,
+        max_instances=1,
+        misfire_grace_time=3600,
     )
     return scheduler

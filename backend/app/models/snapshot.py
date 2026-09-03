@@ -20,4 +20,5 @@ class FactPortfolioSnapshot(Base):
     daily_return: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
     csi300_nav: Mapped[Decimal | None] = mapped_column(Numeric(12, 4))
     sp500_nav: Mapped[Decimal | None] = mapped_column(Numeric(12, 4))
+    nasdaq_nav: Mapped[Decimal | None] = mapped_column(Numeric(12, 4))
     review_notes: Mapped[str | None] = mapped_column(Text)

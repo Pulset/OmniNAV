@@ -38,6 +38,7 @@ export interface Snapshot {
   daily_return: string
   csi300_nav: string | null
   sp500_nav: string | null
+  nasdaq_nav: string | null
   review_notes: string | null
 }
 

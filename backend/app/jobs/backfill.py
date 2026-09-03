@@ -19,7 +19,12 @@ from app.services.market.akshare_provider import AkshareProvider
 from app.services.market.base import ProviderError
 from app.services.market.fetcher import _route, upsert_market_rows
 from app.services.market.fx_provider import FrankfurterFxProvider
-from app.services.settlement import CSI300_SYMBOL, SP500_SYMBOL, run_settlement
+from app.services.settlement import (
+    CSI300_SYMBOL,
+    NASDAQ_SYMBOL,
+    SP500_SYMBOL,
+    run_settlement,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -54,7 +59,7 @@ async def run(start: date, end: date) -> None:
         assets = (await session.execute(select(DimAsset))).scalars().all()
         market_symbols = [
             a.asset_id for a in assets if a.valuation_type == "MARKET"
-        ] + [CSI300_SYMBOL, SP500_SYMBOL]
+        ] + [CSI300_SYMBOL, SP500_SYMBOL, NASDAQ_SYMBOL]
         await _fetch_history(session, market_symbols, start - timedelta(days=10), end)
 
         first_txn = (
