@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2, X } from 'lucide-react'
 import { api } from '../api/client'
 import type { Asset, Transaction, TransType } from '../api/types'
 import { TRANS_COLORS, TRANS_LABELS, fmtNumber } from '../lib/format'
@@ -13,6 +13,7 @@ export function Transactions() {
   const [txns, setTxns] = useState<Transaction[]>([])
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [saving, setSaving] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
 
   const [form, setForm] = useState({
     asset_id: '',
@@ -38,22 +39,50 @@ export function Transactions() {
   }, [])
 
   const selected = assets.find((a) => a.asset_id === form.asset_id)
+  const assetName = (id: string) => assets.find((a) => a.asset_id === id)?.name ?? id
+
+  const startEdit = (t: Transaction) => {
+    setEditingId(t.id)
+    setMsg(null)
+    setForm({
+      asset_id: t.asset_id,
+      trans_type: t.trans_type,
+      trans_date: t.trans_date,
+      price: t.price,
+      quantity: t.quantity,
+      fee: t.fee,
+      notes: t.notes ?? '',
+    })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setForm((f) => ({ ...f, price: '', quantity: '', fee: '', notes: '' }))
+  }
 
   const submit = async () => {
     setSaving(true)
     setMsg(null)
+    const body = {
+      asset_id: form.asset_id,
+      trans_type: form.trans_type,
+      trans_date: form.trans_date,
+      price: parseFloat(form.price),
+      quantity: parseFloat(form.quantity),
+      fee: form.fee ? parseFloat(form.fee) : 0,
+      currency: selected?.currency ?? 'CNY',
+      notes: form.notes || null,
+    }
     try {
-      await api.post('/transactions', {
-        asset_id: form.asset_id,
-        trans_type: form.trans_type,
-        trans_date: form.trans_date,
-        price: parseFloat(form.price),
-        quantity: parseFloat(form.quantity),
-        fee: form.fee ? parseFloat(form.fee) : 0,
-        currency: selected?.currency ?? 'CNY',
-        notes: form.notes || null,
-      })
-      setMsg({ ok: true, text: '录入成功' })
+      if (editingId !== null) {
+        await api.put(`/transactions/${editingId}`, body)
+        setMsg({ ok: true, text: '流水已更新' })
+        setEditingId(null)
+      } else {
+        await api.post('/transactions', body)
+        setMsg({ ok: true, text: '录入成功' })
+      }
       setForm((f) => ({ ...f, price: '', quantity: '', fee: '', notes: '' }))
       await load()
     } catch (e) {
@@ -77,9 +106,27 @@ export function Transactions() {
       <h1 className="text-xl font-semibold">交易流水</h1>
 
       <div className="rounded-xl border border-slate-800 bg-card-bg p-4">
-        <h3 className="mb-3 flex items-center gap-1.5 text-sm font-medium text-slate-300">
-          <Plus className="h-4 w-4" /> 录入交易
-        </h3>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="flex items-center gap-1.5 text-sm font-medium text-slate-300">
+            {editingId !== null ? (
+              <>
+                <Pencil className="h-4 w-4" /> 编辑流水 #{editingId}
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4" /> 录入交易
+              </>
+            )}
+          </h3>
+          {editingId !== null && (
+            <button
+              onClick={cancelEdit}
+              className="flex items-center gap-1 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-400 transition-colors hover:border-slate-500 hover:text-slate-200"
+            >
+              <X className="h-3 w-3" /> 取消编辑
+            </button>
+          )}
+        </div>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <div>
             <label className="mb-1 block text-xs text-slate-500">资产</label>
@@ -172,7 +219,7 @@ export function Transactions() {
             onClick={() => void submit()}
             className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-opacity disabled:opacity-40"
           >
-            {saving ? '保存中…' : '保存'}
+            {saving ? '保存中…' : editingId !== null ? '保存修改' : '保存'}
           </button>
           {msg && (
             <span className={'text-xs ' + (msg.ok ? 'text-profit' : 'text-loss')}>
@@ -216,7 +263,8 @@ export function Transactions() {
                   {TRANS_LABELS[t.trans_type]}
                 </td>
                 <td className="px-4 py-2.5">
-                  <span className="text-slate-200">{t.asset_id}</span>
+                  <span className="text-slate-200">{assetName(t.asset_id)}</span>
+                  <span className="ml-1.5 text-xs text-slate-500">{t.asset_id}</span>
                 </td>
                 <td className="px-4 py-2.5 text-right tabular-nums">{fmtNumber(t.price, 4)}</td>
                 <td className="px-4 py-2.5 text-right tabular-nums">{fmtNumber(t.quantity)}</td>
@@ -230,13 +278,22 @@ export function Transactions() {
                   {t.notes ?? ''}
                 </td>
                 <td className="px-2 py-2.5">
-                  <button
-                    onClick={() => void remove(t.id)}
-                    className="rounded p-1 text-slate-600 transition-colors hover:text-loss"
-                    title="删除"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      onClick={() => startEdit(t)}
+                      className="rounded p-1 text-slate-600 transition-colors hover:text-brand-primary"
+                      title="编辑"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => void remove(t.id)}
+                      className="rounded p-1 text-slate-600 transition-colors hover:text-loss"
+                      title="删除"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

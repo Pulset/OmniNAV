@@ -41,6 +41,7 @@ source .venv/bin/activate && alembic upgrade head && uvicorn app.main:app --relo
 - 前端 ECharts 采用自写轻封装（init/setOption/resize/销毁）替代 `echarts-for-react`，规避其与 React 19 的兼容风险。
 - 交易表单用受控组件实现（未用 React 19 Actions），行为等价。
 - 月度报告「最后交易日」以周一至五近似（无节假日历），与盘中监控窗口同策略；节假日触发时报告基于最近可得快照与行情生成。月内最后一个交易日的权威快照由次日 06:00 清算生成，20:00 推送的期末估值为最新可得行情的预估。
+- 持仓成本采用与券商 App 一致的**摊薄口径**（买入金额+手续费、卖出按净回款冲减、分红不加成本、清仓结转归零），用于持仓页成本/浮动盈亏展示；NAV 净值核算与该口径无关。
 
 ---
 

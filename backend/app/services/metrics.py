@@ -55,8 +55,14 @@ def compute_metric_summary(
             common = returns.index.intersection(bench_ret.index)
             if len(common) >= 5:
                 r, b = returns.loc[common], bench_ret.loc[common]
-                out["alpha_vs_csi300"] = _f(qs.stats.alpha(r, b))
-                out["beta_vs_csi300"] = _f(qs.stats.beta(r, b))
+                # quantstats 0.0.81 移除了 alpha/beta，按 CAPM 自行回归：
+                # beta = cov(r, b) / var(b)；alpha 日频 = mean(r) - beta·mean(b)，按 252 日年化
+                var_b = b.var()
+                if var_b and var_b > 0:
+                    beta = float(r.cov(b) / var_b)
+                    alpha_daily = float(r.mean()) - beta * float(b.mean())
+                    out["beta_vs_csi300"] = beta
+                    out["alpha_vs_csi300"] = _f((1 + alpha_daily) ** 252 - 1)
     except Exception:
         logger.warning("QuantStats 指标计算失败", exc_info=True)
     return out

@@ -16,7 +16,7 @@ from app.schemas.portfolio import (
     SummaryResponse,
 )
 from app.services.nav import ZERO
-from app.services.portfolio import aggregate_holdings
+from app.services.portfolio import aggregate_diluted_cost, aggregate_holdings
 from app.services.settlement import _load_price_book, _to_asset_like
 from app.services.valuation import MissingPriceError, fx_symbol, value_asset
 
@@ -29,13 +29,14 @@ Q2 = Decimal("0.01")
 async def _current_valuations(session: AsyncSession, as_of: date):
     txns = (await session.execute(select(FactTransaction))).scalars().all()
     holdings = aggregate_holdings(txns)
+    diluted = aggregate_diluted_cost(txns)
     assets = {
         a.asset_id: _to_asset_like(a)
         for a in (await session.execute(select(DimAsset))).scalars()
     }
     book = await _load_price_book(session, as_of)
     valuations = [
-        value_asset(assets[aid], lots, book, as_of)
+        value_asset(assets[aid], lots, book, as_of, diluted_cost=diluted.get(aid))
         for aid, lots in holdings.items()
         if aid in assets
     ]

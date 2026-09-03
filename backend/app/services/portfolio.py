@@ -69,6 +69,39 @@ def aggregate_holdings(txns: Sequence[TxnLike]) -> dict[str, list[Lot]]:
     return {aid: lots for aid, lots in holdings.items() if lots}
 
 
+def aggregate_diluted_cost(txns: Sequence[TxnLike]) -> dict[str, Decimal]:
+    """摊薄持仓成本（券商 App 口径，含手续费），返回 asset_id -> 本币成本。
+
+    - BUY/DEPOSIT：成本 += 金额 + 手续费
+    - SELL/WITHDRAW：成本 -= 净回款（金额 - 手续费）
+    - DIVIDEND：仅增加数量（分红是收益，不增加成本）
+    - 清仓（数量归零）时成本结转归零，从零重计
+    """
+    ordered = sorted(txns, key=lambda t: (t.trans_date, getattr(t, "id", 0) or 0))
+    cost: dict[str, Decimal] = {}
+    qty: dict[str, Decimal] = {}
+    for t in ordered:
+        aid = t.asset_id
+        tt = str(t.trans_type)
+        amount = t.price * t.quantity
+        fee = t.fee or ZERO
+        if tt in ("BUY", "DEPOSIT"):
+            cost[aid] = cost.get(aid, ZERO) + amount + fee
+            qty[aid] = qty.get(aid, ZERO) + t.quantity
+        elif tt in ("SELL", "WITHDRAW"):
+            cost[aid] = cost.get(aid, ZERO) - (amount - fee)
+            qty[aid] = qty.get(aid, ZERO) - t.quantity
+        elif tt == "DIVIDEND":
+            qty[aid] = qty.get(aid, ZERO) + t.quantity
+        else:
+            raise ValueError(f"未知交易类型: {tt}")
+        if qty[aid] == ZERO:
+            cost[aid] = ZERO
+        elif qty[aid] < ZERO:
+            raise OverSellError(f"{aid} 在 {t.trans_date} 的 {tt} 数量超过持仓")
+    return {aid: c for aid, c in cost.items() if qty.get(aid, ZERO) > ZERO}
+
+
 def net_cash_flow_cny(
     txns: Sequence[TxnLike],
     fx_rate: Callable[[str, date], Decimal],

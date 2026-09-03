@@ -115,11 +115,22 @@ def _weighted_avg_cost(lots: Sequence[Lot]) -> Decimal:
 
 
 def value_asset(
-    asset: AssetLike, lots: Sequence[Lot], book: PriceBook, on_date: date
+    asset: AssetLike,
+    lots: Sequence[Lot],
+    book: PriceBook,
+    on_date: date,
+    diluted_cost: Decimal | None = None,
 ) -> PositionValuation:
-    """对单个资产在 on_date 估值（本币单价 → 汇率折算 → CNY 市值）。"""
+    """对单个资产在 on_date 估值（本币单价 → 汇率折算 → CNY 市值）。
+
+    diluted_cost 为摊薄持仓成本（本币，券商 App 口径，由调用方按全量流水
+    重放得到）；缺省回退 FIFO 剩余批次成本。
+    """
     quantity = sum((l.quantity for l in lots), ZERO)
-    cost_native = sum((l.price * l.quantity for l in lots), ZERO)
+    if diluted_cost is not None:
+        cost_native = diluted_cost
+    else:
+        cost_native = sum((l.price * l.quantity for l in lots), ZERO)
 
     vt = asset.valuation_type
     day_change: Decimal | None = None

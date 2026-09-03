@@ -56,6 +56,32 @@ async def create_transaction(
     return txn
 
 
+@router.put("/{txn_id}", response_model=TransactionOut)
+async def update_transaction(
+    txn_id: int, payload: TransactionCreate, session: AsyncSession = Depends(get_session)
+):
+    """全量更新一笔流水，校验规则与新建一致。"""
+    txn = await session.get(FactTransaction, txn_id)
+    if not txn:
+        raise HTTPException(404, f"流水 {txn_id} 不存在")
+    asset = await session.get(DimAsset, payload.asset_id)
+    if not asset:
+        raise HTTPException(404, f"资产 {payload.asset_id} 不存在，请先创建资产")
+    if payload.currency != asset.currency:
+        raise HTTPException(
+            422,
+            f"结算币种 {payload.currency} 与资产币种 {asset.currency} 不一致",
+        )
+    err = validate_trans_asset_compat(payload, asset.asset_class)
+    if err:
+        raise HTTPException(422, err)
+    for key, value in payload.model_dump().items():
+        setattr(txn, key, value)
+    await session.commit()
+    await session.refresh(txn)
+    return txn
+
+
 @router.delete("/{txn_id}", status_code=204)
 async def delete_transaction(txn_id: int, session: AsyncSession = Depends(get_session)):
     txn = await session.get(FactTransaction, txn_id)

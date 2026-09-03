@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import DimAsset, FactDailyMarketData, FactPortfolioSnapshot, FactTransaction
 from app.services.nav import Q2, Q4, ZERO, NavResult, settle_day
-from app.services.portfolio import aggregate_holdings, net_cash_flow_cny
+from app.services.portfolio import aggregate_diluted_cost, aggregate_holdings, net_cash_flow_cny
 from app.services.valuation import (
     AssetLike,
     PositionValuation,
@@ -134,10 +134,17 @@ async def run_settlement(
     holdings_before = aggregate_holdings(
         [t for t in txns if t.trans_date < target_date]
     )
+    diluted = aggregate_diluted_cost(txns)
 
     def _value_all(holdings: dict[str, list]) -> list[PositionValuation]:
         return [
-            value_asset(assets[aid], lots, book, target_date)
+            value_asset(
+                assets[aid],
+                lots,
+                book,
+                target_date,
+                diluted_cost=diluted.get(aid),
+            )
             for aid, lots in holdings.items()
             if aid in assets
         ]
