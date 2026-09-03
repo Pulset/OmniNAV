@@ -6,7 +6,7 @@
 
 import asyncio
 import logging
-from datetime import datetime, time, date
+from datetime import datetime, time, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from zoneinfo import ZoneInfo
 
@@ -113,7 +113,9 @@ async def _monitor_for_user(
             continue
         await cache.set_quote(asset_id, price)
 
-        prev = book.close(asset_id, now.date())
+        # 基准固定取「昨收」：显式回看一天，避免 22:00 简报写入当日收盘后
+        # 基准变成当日收盘导致涨跌幅恒为 0、告警失效
+        prev = book.close(asset_id, now.date() - timedelta(days=1))
         if prev is None or prev == ZERO:
             continue
         pct = (price / prev - 1).quantize(Q4, ROUND_HALF_UP)
@@ -142,8 +144,7 @@ async def intraday_monitor_job() -> None:
         return
 
     async with SessionLocal() as session:
-        book = await _load_price_book(session, date.today())
-        cache = QuoteCache()
+        book = await _load_price_book(session, now.date())
         users = (
             (
                 await session.execute(
@@ -153,8 +154,10 @@ async def intraday_monitor_job() -> None:
             .scalars()
             .all()
         )
-        for user in users:
-            try:
+    cache = QuoteCache()
+    for user in users:
+        try:
+            async with SessionLocal() as session:
                 await _monitor_for_user(session, user, book, cache, now)
-            except Exception:
-                logger.exception("user=%s(%s) 盘中监控失败，跳过", user.id, user.username)
+        except Exception:
+            logger.exception("user=%s(%s) 盘中监控失败，跳过", user.id, user.username)

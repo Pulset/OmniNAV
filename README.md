@@ -74,6 +74,11 @@ python -m app.jobs.backfill --from 2026-01-01    # 抓历史行情并逐日重�
 
 不使用容器（已确认）。生产部署即上述本机流程：brew services/systemd 管理 PostgreSQL 与 Redis，后端 `uvicorn` 常驻，前端 `npm run build` 后由静态服务器托管（开发期用 `npm run dev`）。
 
+**部署约束**：
+
+- 后端必须**单 worker** 运行（`uvicorn app.main:app`，不要加 `--workers N`，也不要多副本）：API 进程内嵌 APScheduler，多进程会重复调度（重复推送、快照并发写冲突）。业务时区固定 `Asia/Shanghai`，与服务器本地时区解耦。
+- 若部署在反向代理后，需正确配置 `X-Forwarded-For`，否则登录限速按代理 IP 计数，一个来源的爆破会锁定全部用户。
+
 ## 核心概念
 
 - **单位净值（Unit NAV）**：基金份额法平滑核算，出入金按当日真实净值增发/赎回份额，净值曲线只反映真实投资能力。

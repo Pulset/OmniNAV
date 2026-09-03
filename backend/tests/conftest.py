@@ -89,18 +89,21 @@ def prepared_db():
 
 @pytest.fixture(autouse=True)
 async def _close_redis_after_test():
-    """security.get_redis() 是模块级单例，持有当前测试事件循环上的连接池；
-    每个测试结束后在同一个 loop 内干净关闭，避免下个测试的 loop 已切换。"""
+    """security / market.cache 的 Redis 客户端是模块级单例，持有当前测试
+    事件循环上的连接池；每个测试结束后在同一个 loop 内干净关闭，
+    避免下个测试的 loop 已切换。"""
     yield
     from app.core import security
+    from app.services.market import cache
 
-    client = security._redis
-    security._redis = None
-    if client is not None:
-        try:
-            await client.aclose()
-        except Exception:
-            pass
+    for mod in (security, cache):
+        client = mod._redis
+        mod._redis = None
+        if client is not None:
+            try:
+                await client.aclose()
+            except Exception:
+                pass
 
 
 def new_client():

@@ -23,7 +23,7 @@ from app.services.settlement import (
     CSI300_SYMBOL,
     NASDAQ_SYMBOL,
     SP500_SYMBOL,
-    run_settlement,
+    replay_settlements,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -83,16 +83,11 @@ async def run(start: date, end: date, username: str) -> None:
             return
 
         replay_from = max(first_txn, start)
-        d = replay_from
         total_days = (end - replay_from).days + 1
-        done = 0
-        while d <= end:
-            result = await run_settlement(session, d, user_id=user.id, persist=True)
-            done += 1
-            if done % 30 == 0 or d == end:
-                nav = result.nav.unit_nav if result else "—"
-                logger.info("回放进度 %d/%d (%s, nav=%s)", done, total_days, d, nav)
-            d += timedelta(days=1)
+        logger.info("回放 %s → %s（%d 天），上下文加载一次", replay_from, end, total_days)
+        result = await replay_settlements(session, user.id, replay_from, end)
+        if result is not None:
+            logger.info("回放完成 nav=%s", result.nav.unit_nav)
 
 
 def main() -> None:

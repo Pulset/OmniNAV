@@ -23,7 +23,11 @@ from app.services.report import (
     compute_period_stats,
     is_last_trading_day_of_month,
 )
-from app.services.settlement import _load_price_book, run_settlement
+from app.services.settlement import (
+    _load_price_book,
+    ensure_chain_current,
+    run_settlement,
+)
 from app.services.valuation import MissingPriceError
 
 logger = logging.getLogger(__name__)
@@ -77,6 +81,9 @@ async def _generate_for_user(
         end = date(year, month + 1, 1) - timedelta(days=1)
 
     label = f"{year}年度" if annual else f"{year}年{month}月"
+    # 快照可能因流水变更而失效，先回放修复到期末前一天
+    # （当日留给 06:00 终局清算，保证权威快照口径一致）
+    await ensure_chain_current(session, user.id, end)
     start_snap, period_snaps = await _load_period_snaps(session, user.id, start, end)
     if not period_snaps:
         logger.info("user=%s %s 无快照数据，跳过报告", user.id, label)
@@ -112,7 +119,9 @@ async def _generate_for_user(
 async def _generate(year: int, month: int | None) -> None:
     """按活跃用户循环生成报告；单用户失败不中断他人。"""
     async with SessionLocal() as session:
-        await fetch_latest_market_data(session, date.today())
+        await fetch_latest_market_data(
+            session, datetime.now(CST).date()
+        )
         users = (
             (
                 await session.execute(
@@ -122,13 +131,14 @@ async def _generate(year: int, month: int | None) -> None:
             .scalars()
             .all()
         )
-        for user in users:
-            try:
+    for user in users:
+        try:
+            async with SessionLocal() as session:
                 await _generate_for_user(session, user, year, month)
-            except Exception:
-                logger.exception(
-                    "user=%s(%s) 报告生成失败，跳过", user.id, user.username
-                )
+        except Exception:
+            logger.exception(
+                "user=%s(%s) 报告生成失败，跳过", user.id, user.username
+            )
 
 
 async def monthly_report_job(target_date: date | None = None) -> None:

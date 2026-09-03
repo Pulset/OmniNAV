@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,7 +20,7 @@ router = APIRouter(
 async def list_snapshots(
     date_from: date | None = None,
     date_to: date | None = None,
-    limit: int = 1000,
+    limit: int = Query(default=1000, le=10000),
     user: SysUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):

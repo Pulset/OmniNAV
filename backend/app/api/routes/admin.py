@@ -1,5 +1,7 @@
 """管理员用户管理（MultiUser §3.3）：列表 / 建号 / 停用启用 / 重置密码。"""
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +15,8 @@ from app.schemas.user import UserCreateIn, UserOut, UserUpdateIn
 router = APIRouter(
     prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)]
 )
+
+logger = logging.getLogger(__name__)
 
 
 @router.get("/users", response_model=list[UserOut])
@@ -63,11 +67,16 @@ async def update_user(
         raise HTTPException(422, "不能停用自己的账号")
     if payload.password is not None:
         user.password_hash = security.hash_password(payload.password)
-        await security.revoke_all_user_sessions(user.id)
     if payload.is_active is not None:
         user.is_active = payload.is_active
-        if not payload.is_active:
-            await security.revoke_all_user_sessions(user.id)
     await session.commit()
     await session.refresh(user)
+    # 吊销在 commit 之后执行：避免 commit 失败造成误杀；
+    # 失败显式报错，由管理员重试（重置密码/停用本身已生效）
+    if payload.password is not None or payload.is_active is False:
+        try:
+            await security.revoke_all_user_sessions(user.id)
+        except Exception:
+            logger.exception("吊销用户会话失败 (user=%s)", user_id)
+            raise HTTPException(503, "操作已生效但会话吊销失败，请重试")
     return user

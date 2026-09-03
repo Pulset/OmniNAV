@@ -68,12 +68,21 @@ async def create_session(user_id: int) -> str:
 
 
 async def get_session_user(token: str) -> int | None:
-    """校验 token 并滑动续期；失效返回 None。"""
+    """校验 token 并滑动续期；失效返回 None。
+
+    同时续期 user_sessions 集合的 TTL，保证全量吊销集合
+    覆盖所有仍有效的 token（集合只在登录时刷新会漏掉续期长寿会话）。
+    """
     r = get_redis()
     user_id = await r.get(_session_key(token))
     if user_id is None:
         return None
-    await r.expire(_session_key(token), SESSION_TTL_SECONDS)
+    async with r.pipeline(transaction=True) as pipe:
+        pipe.expire(_session_key(token), SESSION_TTL_SECONDS)
+        pipe.expire(
+            _user_sessions_key(int(user_id)), SESSION_TTL_SECONDS + 60
+        )
+        await pipe.execute()
     return int(user_id)
 
 
@@ -103,9 +112,10 @@ async def is_login_blocked(username: str, ip: str) -> bool:
 async def register_login_fail(username: str, ip: str) -> None:
     r = get_redis()
     key = _login_fail_key(username, ip)
-    count = await r.incr(key)
-    if count == 1:
-        await r.expire(key, LOGIN_FAIL_WINDOW_SECONDS)
+    await r.incr(key)
+    # EXPIRE NX：仅在没有 TTL 时设置（含 incr 后、expire 前崩溃留下的孤儿 key），
+    # 已有 TTL 则不刷新窗口，计数到 5 后锁定自然到期解除
+    await r.expire(key, LOGIN_FAIL_WINDOW_SECONDS, nx=True)
 
 
 async def reset_login_fails(username: str, ip: str) -> None:

@@ -8,10 +8,10 @@ from decimal import Decimal, ROUND_HALF_UP
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import FactPortfolioSnapshot, SysAlertRule
+from app.models import DimAsset, FactPortfolioSnapshot, SysAlertRule
 from app.services.nav import ZERO
 from app.services.settlement import SettlementResult
-from app.services.valuation import PriceBook
+from app.services.valuation import PriceBook, manual_nav_symbol
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +42,16 @@ async def evaluate_eod_alerts(
         .scalars()
         .all()
     )
+    val_types = {
+        aid: vt
+        for aid, vt in (
+            await session.execute(
+                select(DimAsset.asset_id, DimAsset.valuation_type).where(
+                    DimAsset.user_id == user_id
+                )
+            )
+        ).all()
+    }
     events: list[AlertEvent] = []
     target = result.target_date
 
@@ -49,7 +59,12 @@ async def evaluate_eod_alerts(
         threshold = Decimal(rule.threshold)
         try:
             if rule.rule_type == "DAILY_PCT_CHANGE" and rule.asset_id:
-                cur, prev = book.close_with_prev(rule.asset_id, target)
+                symbol = (
+                    manual_nav_symbol(rule.asset_id)
+                    if val_types.get(rule.asset_id) == "MANUAL_NAV"
+                    else rule.asset_id
+                )
+                cur, prev = book.close_with_prev(symbol, target)
                 if cur and prev and prev > ZERO:
                     pct = (cur / prev - 1).quantize(Q4, ROUND_HALF_UP)
                     if abs(pct) >= threshold:

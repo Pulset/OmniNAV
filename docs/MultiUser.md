@@ -106,7 +106,7 @@ router = APIRouter(prefix="/assets", tags=["assets"],
 
 ### 4.1 关键设计点：资产主键复合化
 
-`dim_assets.asset_id` 是用户手起的自然键（如 `600519.SH`、`CASH_CNY`），多个用户跟踪同一标的必然撞主键。因此资产表主键改为 `(user_id, asset_id)`，下游外键随之复合化。**行情表按 symbol 查询天然与用户无关，不受影响。**
+`dim_assets.asset_id` 是用户手起的自然键（如 `600519.SH`、`CASH_CNY`），多个用户跟踪同一标的必然撞主键。因此资产表主键改为 `(user_id, asset_id)`，下游外键随之复合化。**行情表按 symbol 查询天然与用户无关，不受影响；但 MANUAL_NAV 手动净值是每用户的私有业务数据，不能混入公共行情表**（两个用户各自的 `WM001` 会互相覆盖），迁移 0004 起独立存放在 `fact_manual_navs`。
 
 ### 4.2 表改动清单与 DDL
 
@@ -117,6 +117,8 @@ router = APIRouter(prefix="/assets", tags=["assets"],
 | `fact_portfolio_snapshots`  | +`user_id`；主键 `(snapshot_date)` → `(user_id, snapshot_date)`                               |
 | `sys_alert_rules`           | +`user_id`；外键改 `(user_id, asset_id)` 复合引用                                             |
 | `fact_daily_market_data`    | **不改**（公共行情，全用户共享）                                                              |
+| `fact_manual_navs`          | 0004 新增：MANUAL_NAV 净值按用户隔离，主键 `(user_id, asset_id, nav_date)`                    |
+| `sys_settlement_state`      | 0004 新增：流水变更后的快照失效标记（dirty_from），Job 自动逐日回放修复清算链                 |
 
 ```sql
 -- dim_assets

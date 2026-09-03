@@ -22,6 +22,8 @@ FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "di
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    # 部署约束：API 与调度器同进程，必须以单 worker 运行
+    # （uvicorn --workers N 或多副本会重复调度：重复推送与快照并发写冲突）
     scheduler = None
     if get_settings().enable_scheduler:
         from app.jobs.scheduler import build_scheduler
@@ -32,6 +34,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
     if scheduler:
         scheduler.shutdown(wait=False)
+    from app.core.db import engine
+
+    await engine.dispose()
 
 
 app = FastAPI(

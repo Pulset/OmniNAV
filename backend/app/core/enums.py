@@ -1,6 +1,11 @@
 from enum import StrEnum
 
 
+# 当前汇率源（Frankfurter）实际抓取的币种 + 本币；资产/流水币种必须在此集合内，
+# 否则清算时 fx_to_cny 抛 MissingPriceError，该用户每日清算永久失败
+SUPPORTED_CURRENCIES = ("CNY", "USD", "HKD")
+
+
 class AssetClass(StrEnum):
     STOCK = "STOCK"
     ETF = "ETF"

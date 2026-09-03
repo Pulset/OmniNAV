@@ -1,9 +1,12 @@
 from datetime import date, datetime
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.core.enums import AssetClass, TransType
+from app.core.enums import SUPPORTED_CURRENCIES, AssetClass, TransType
+
+CST = ZoneInfo("Asia/Shanghai")
 
 
 class TransactionCreate(BaseModel):
@@ -17,9 +20,15 @@ class TransactionCreate(BaseModel):
     notes: str | None = None
 
     @model_validator(mode="after")
-    def check_date_not_future(self) -> "TransactionCreate":
-        if self.trans_date > date.today():
+    def check_writable(self) -> "TransactionCreate":
+        # 业务时区统一 CST，避免部署在非东八区服务器时"今天"漂移
+        if self.trans_date > datetime.now(CST).date():
             raise ValueError("交易日期不能晚于今天")
+        if self.currency not in SUPPORTED_CURRENCIES:
+            raise ValueError(
+                f"币种 {self.currency} 暂不支持（无汇率源），可选: "
+                f"{', '.join(SUPPORTED_CURRENCIES)}"
+            )
         return self
 
 

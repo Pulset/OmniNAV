@@ -29,12 +29,26 @@ def calculate_daily_nav(
 ) -> tuple[Decimal, Decimal]:
     """计算当日单位净值与新总份额。
 
-    - yesterday_shares 为 0 视为初始建仓日（Day 0）：NAV = 1.0000，
-      份额 = 当日外部现金流（无现金流则取当日市值）。
+    - yesterday_shares 为 0 且 yesterday_nav 为 0 视为初始建仓日（Day 0）：
+      NAV = 1.0000，份额 = 当日外部现金流（无现金流则取当日市值）。
+    - yesterday_shares 为 0 但 yesterday_nav > 0 是「清仓后再入场」：
+      净值结转昨日（保证全生命周期 NAV 曲线连续、只反映投资收益），
+      份额按该净值折算当日现金流；当日无现金流则维持空仓。
     - today_market_value_before_flow 是「昨日持仓 × 今日价格」的总市值，
       即出入金发生前因市场波动产生的真实净值分子。
     """
     if yesterday_shares == ZERO:
+        if yesterday_nav > ZERO:
+            # 清仓后再入场：NAV 结转，避免重置 1.0000 造成收益曲线断裂
+            if today_net_cash_flow == ZERO:
+                return (
+                    yesterday_nav.quantize(Q4, rounding=ROUND_HALF_UP),
+                    ZERO.quantize(Q4, rounding=ROUND_HALF_UP),
+                )
+            shares = (today_net_cash_flow / yesterday_nav).quantize(
+                Q4, rounding=ROUND_HALF_UP
+            )
+            return yesterday_nav.quantize(Q4, rounding=ROUND_HALF_UP), shares
         base = (
             today_net_cash_flow
             if today_net_cash_flow != ZERO

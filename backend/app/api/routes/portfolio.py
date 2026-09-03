@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal, ROUND_HALF_UP
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -57,7 +57,7 @@ async def _current_valuations(
             )
         ).scalars()
     }
-    book = await _load_price_book(session, as_of)
+    book = await _load_price_book(session, as_of, user_id=user_id)
     valuations = [
         value_asset(assets[aid], lots, book, as_of, diluted_cost=diluted.get(aid))
         for aid, lots in holdings.items()
@@ -164,14 +164,14 @@ async def get_summary(
     )
     count = (
         await session.execute(
-            select(FactPortfolioSnapshot.snapshot_date).where(
-                FactPortfolioSnapshot.user_id == user.id
-            )
+            select(func.count())
+            .select_from(FactPortfolioSnapshot)
+            .where(FactPortfolioSnapshot.user_id == user.id)
         )
-    ).scalars()
+    ).scalar_one()
     return SummaryResponse(
         base_currency=base,
         latest=_brief(snaps[0]) if snaps else None,
         prev=_brief(snaps[1]) if len(snaps) > 1 else None,
-        snapshot_count=len(list(count)),
+        snapshot_count=count,
     )

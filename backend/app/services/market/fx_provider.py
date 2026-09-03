@@ -10,13 +10,15 @@ from decimal import Decimal
 
 import httpx
 
+from app.core.enums import SUPPORTED_CURRENCIES
 from app.services.market.base import ProviderError
 from app.services.valuation import fx_symbol
 
 logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://api.frankfurter.dev/v1"
-_CURRENCIES = ("USD", "HKD")
+# 与 schemas 的币种白名单同源，新增币种只需改 SUPPORTED_CURRENCIES
+_CURRENCIES = tuple(c for c in SUPPORTED_CURRENCIES if c != "CNY")
 
 
 class FrankfurterFxProvider:

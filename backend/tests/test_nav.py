@@ -85,3 +85,31 @@ def test_full_liquidation_keeps_last_nav():
     nav, shares = calculate_daily_nav(D("1.2000"), D("50000"), D("60000"), D("-60000"))
     assert nav == D("1.2000")
     assert shares == D("0.0000")
+
+
+def test_refund_after_liquidation_carries_nav():
+    """清仓后再入金：NAV 结转昨日而非重置 1.0000，收益曲线连续。"""
+    nav, shares = calculate_daily_nav(D("1.2000"), D("0"), D("0"), D("24000"))
+    assert nav == D("1.2000")
+    assert shares == D("20000.0000")  # 24000 / 1.2
+
+    # 清仓后无现金流：维持空仓，NAV 仍结转
+    nav, shares = calculate_daily_nav(D("1.2000"), D("0"), D("0"), D("0"))
+    assert nav == D("1.2000")
+    assert shares == D("0.0000")
+
+
+def test_settle_day_reentry_no_phantom_return():
+    """再入场日：日收益率为 0、无幽灵盈亏（旧逻辑会得到 1/1.4-1 ≈ -28.6%）。"""
+    r = settle_day(
+        yesterday_nav=D("1.4000"),
+        yesterday_shares=D("0"),
+        yesterday_total_mv=D("0"),
+        today_mv_before_flow=D("0"),
+        today_mv_end_of_day=D("14000"),
+        today_net_cash_flow=D("14000"),
+    )
+    assert r.unit_nav == D("1.4000")
+    assert r.daily_return == D("0.0000")
+    assert r.daily_pnl_cny == D("0.00")
+    assert r.total_shares == D("10000.0000")

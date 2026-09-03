@@ -1,5 +1,7 @@
 """认证与会话：登录/登出/当前用户/改密/个人通知渠道（MultiUser §3.3）。"""
 
+import logging
+
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +19,8 @@ from app.schemas.user import (
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+logger = logging.getLogger(__name__)
 
 
 def _user_brief(user: SysUser) -> dict:
@@ -86,8 +90,13 @@ async def change_password(
         raise HTTPException(422, "原密码不正确")
     user.password_hash = security.hash_password(payload.new_password)
     await session.commit()
-    # 全量吊销（含当前会话），前端统一跳回登录页
-    await security.revoke_all_user_sessions(user.id)
+    # 全量吊销（含当前会话），前端统一跳回登录页。
+    # 先 commit 后吊销：吊销失败必须显式报错，避免旧会话带着旧密码继续有效
+    try:
+        await security.revoke_all_user_sessions(user.id)
+    except Exception:
+        logger.exception("改密后吊销会话失败 (user=%s)", user.id)
+        raise HTTPException(503, "密码已更新但会话吊销失败，请重新登录并重试")
     return {"ok": True}
 
 

@@ -10,6 +10,7 @@ from app.services.valuation import (
     AssetLike,
     MissingPriceError,
     PriceBook,
+    manual_nav_symbol,
     value_asset,
 )
 
@@ -90,7 +91,8 @@ def test_valuate_fixed_yield_daily_accrual():
 
 def test_valuate_manual_nav():
     a = asset(valuation_type="MANUAL_NAV", asset_class="WEALTH", asset_id="BANK_NAV_01")
-    b = book([(date(2026, 1, 3), "BANK_NAV_01", D("1.0321"))])
+    # MANUAL_NAV 净值在行情簿中按用户命名空间键注入（manual_nav_symbol）
+    b = book([(date(2026, 1, 3), manual_nav_symbol("BANK_NAV_01"), D("1.0321"))])
     v = value_asset(a, [Lot(date(2026, 1, 1), D("1"), D("20000"))], b, date(2026, 1, 4))
     assert v.unit_price == D("1.0321")
     assert v.market_value_cny == D("20642.00")

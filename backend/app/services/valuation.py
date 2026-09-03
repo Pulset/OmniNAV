@@ -33,6 +33,15 @@ def fx_symbol(currency: str) -> str:
     return f"FX_{currency}CNY"
 
 
+def manual_nav_symbol(asset_id: str) -> str:
+    """内存行情簿中 MANUAL_NAV 资产的命名空间键。
+
+    手动净值按用户注入各自的 PriceBook；加前缀避免与同名 MARKET
+    标的的公共行情互相覆盖。
+    """
+    return f"MANUAL_NAV:{asset_id}"
+
+
 @dataclass(frozen=True)
 class AssetLike:
     asset_id: str
@@ -150,7 +159,12 @@ def value_asset(
         )
         unit_price = accrued / quantity if quantity > ZERO else ONE
     else:  # MARKET / MANUAL_NAV 均取「最近可得价格/净值」
-        close, prev_close = book.close_with_prev(asset.asset_id, on_date)
+        symbol = (
+            manual_nav_symbol(asset.asset_id)
+            if vt == "MANUAL_NAV"
+            else asset.asset_id
+        )
+        close, prev_close = book.close_with_prev(symbol, on_date)
         if close is None:
             close = _weighted_avg_cost(lots)
             logger.warning(
