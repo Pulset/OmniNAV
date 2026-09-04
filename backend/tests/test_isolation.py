@@ -60,15 +60,15 @@ async def test_two_users_isolated(prepared_db, register_user, do_login):
         await do_login(bob, f"bob_{uid}")
 
         # 各建资产与流水
-        resp = await alice.post("/api/assets", json=_asset_payload(f"AL_{uid}"))
+        resp = await alice.post("/api/assets", json=_asset_payload(f"AL_{uid}.SH"))
         assert resp.status_code == 201, resp.text
-        resp = await bob.post("/api/assets", json=_asset_payload(f"BO_{uid}"))
+        resp = await bob.post("/api/assets", json=_asset_payload(f"BO_{uid}.SH"))
         assert resp.status_code == 201, resp.text
 
         resp = await alice.post(
             "/api/transactions",
             json={
-                "asset_id": f"AL_{uid}",
+                "asset_id": f"AL_{uid}.SH",
                 "trans_type": "BUY",
                 "trans_date": "2026-09-01",
                 "price": "10",
@@ -83,8 +83,8 @@ async def test_two_users_isolated(prepared_db, register_user, do_login):
         # 列表互不可见
         alice_ids = {a["asset_id"] for a in (await alice.get("/api/assets")).json()}
         bob_ids = {a["asset_id"] for a in (await bob.get("/api/assets")).json()}
-        assert f"AL_{uid}" in alice_ids and f"BO_{uid}" not in alice_ids
-        assert f"BO_{uid}" in bob_ids and f"AL_{uid}" not in bob_ids
+        assert f"AL_{uid}.SH" in alice_ids and f"BO_{uid}.SH" not in alice_ids
+        assert f"BO_{uid}.SH" in bob_ids and f"AL_{uid}.SH" not in bob_ids
 
         alice_txns = (await alice.get("/api/transactions")).json()
         assert [t["id"] for t in alice_txns] == [alice_txn_id]
@@ -92,14 +92,14 @@ async def test_two_users_isolated(prepared_db, register_user, do_login):
 
         # 跨用户资产访问一律 404，不泄露存在性
         assert (
-            await alice.put(f"/api/assets/BO_{uid}", json={"name": "hijack"})
+            await alice.put(f"/api/assets/BO_{uid}.SH", json={"name": "hijack"})
         ).status_code == 404
-        assert (await alice.delete(f"/api/assets/BO_{uid}")).status_code == 404
+        assert (await alice.delete(f"/api/assets/BO_{uid}.SH")).status_code == 404
         # alice 不能给 bob 的资产记账
         resp = await alice.post(
             "/api/transactions",
             json={
-                "asset_id": f"BO_{uid}",
+                "asset_id": f"BO_{uid}.SH",
                 "trans_type": "BUY",
                 "trans_date": "2026-09-01",
                 "price": "1",
@@ -113,7 +113,7 @@ async def test_two_users_isolated(prepared_db, register_user, do_login):
             await bob.put(
                 f"/api/transactions/{alice_txn_id}",
                 json={
-                    "asset_id": f"BO_{uid}",
+                    "asset_id": f"BO_{uid}.SH",
                     "trans_type": "BUY",
                     "trans_date": "2026-09-01",
                     "price": "1",
@@ -127,7 +127,7 @@ async def test_two_users_isolated(prepared_db, register_user, do_login):
         # 告警规则：bob 不能动 alice 的规则
         resp = await alice.post(
             "/api/alert-rules",
-            json={"rule_type": "DAILY_PCT_CHANGE", "asset_id": f"AL_{uid}", "threshold": 0.05},
+            json={"rule_type": "DAILY_PCT_CHANGE", "asset_id": f"AL_{uid}.SH", "threshold": 0.05},
         )
         assert resp.status_code == 201, resp.text
         alice_rule_id = resp.json()["id"]

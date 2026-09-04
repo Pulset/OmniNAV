@@ -22,6 +22,20 @@ function valuationOptions(cls: AssetClass): ValuationType[] {
     : ['MARKET', 'FIXED_YIELD', 'MANUAL_NAV']
 }
 
+/** MARKET 裸代码自动补交易所后缀，规则与后端 AssetCreate 一致；无法识别的原样提交交给后端拒绝 */
+function withMarketSuffix(assetId: string, market: Market, vt: ValuationType): string {
+  const code = assetId.trim()
+  if (vt !== 'MARKET' || /\.(SH|SZ|HK|US)$/i.test(code)) return code
+  if (market === 'CN' && /^\d{6}$/.test(code)) {
+    if (/^[56]/.test(code)) return `${code}.SH`
+    if (/^[013]/.test(code)) return `${code}.SZ`
+    return code
+  }
+  if (market === 'HK' && /^\d+$/.test(code)) return `${code.padStart(5, '0')}.HK`
+  if (market === 'US' && /[A-Za-z]/.test(code)) return `${code.toUpperCase()}.US`
+  return code
+}
+
 const emptyForm = {
   asset_id: '',
   name: '',
@@ -88,7 +102,7 @@ export function Assets() {
         setMsg({ ok: true, text: '资产已更新' })
       } else {
         await api.post('/assets', {
-          asset_id: form.asset_id.trim(),
+          asset_id: withMarketSuffix(form.asset_id, form.market, form.valuation_type),
           name: form.name,
           asset_class: form.asset_class,
           market: form.market,
@@ -146,7 +160,7 @@ export function Assets() {
               className={inputCls}
               value={form.asset_id}
               onChange={(e) => setForm({ ...form, asset_id: e.target.value })}
-              placeholder="如 510300"
+              placeholder="如 510310（MARKET 标的自动补交易所后缀）"
               disabled={editingId !== null}
             />
           </div>

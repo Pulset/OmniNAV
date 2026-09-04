@@ -33,7 +33,39 @@ class AssetBase(BaseModel):
 
 
 class AssetCreate(AssetBase):
-    pass
+    @model_validator(mode="after")
+    def normalize_market_symbol(self):
+        """MARKET 标的裸代码自动补交易所后缀，无法识别的代码直接拒绝。
+
+        行情路由（provider supports）按后缀识别标的，缺后缀会导致行情
+        全部缺失且估值静默回退成本价。已带后缀的原样放行（仅统一后缀大小写）。
+        """
+        if self.valuation_type != ValuationType.MARKET:
+            return self
+        code = self.asset_id.strip()
+        upper = code.upper()
+        if upper.endswith((".SH", ".SZ", ".HK", ".US")):
+            self.asset_id = code[:-3] + upper[-3:]
+            return self
+        if self.market == Market.CN and len(code) == 6 and code.isdigit():
+            if code[0] in "56":
+                self.asset_id = f"{code}.SH"
+            elif code[0] in "013":
+                self.asset_id = f"{code}.SZ"
+            else:
+                raise ValueError(
+                    f"暂不支持该 A 股代码段（{code}），请带交易所后缀录入（如 510310.SH）"
+                )
+        elif self.market == Market.HK and code.isdigit():
+            self.asset_id = f"{code.zfill(5)}.HK"
+        elif self.market == Market.US and any(c.isalpha() for c in upper):
+            self.asset_id = f"{upper}.US"
+        else:
+            raise ValueError(
+                "无法识别的 MARKET 标的代码，请带交易所后缀录入"
+                "（如 510310.SH / 00700.HK / TSLA.US）"
+            )
+        return self
 
 
 class AssetUpdate(BaseModel):

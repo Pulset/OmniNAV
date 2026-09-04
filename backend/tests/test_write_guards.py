@@ -43,7 +43,7 @@ def _buy(asset_id: str, qty: str, d: str = "2026-09-01", price: str = "10") -> d
 async def test_oversell_rejected_at_write_time(prepared_db, register_user, do_login):  # noqa: F401
     uid = _uid()
     await register_user(f"os_{uid}")
-    aid = f"MT_{uid}"
+    aid = f"MT_{uid}.SH"
     async with new_client() as client:
         await do_login(client, f"os_{uid}")
         assert (await client.post("/api/assets", json=_market_asset(aid))).status_code == 201
@@ -79,7 +79,7 @@ async def test_same_day_buy_then_sell_ordering(prepared_db, register_user, do_lo
     """同日先买后卖：校验重放必须保持时序，不得误判超卖。"""
     uid = _uid()
     await register_user(f"sd_{uid}")
-    aid = f"MT_{uid}"
+    aid = f"MT_{uid}.SH"
     async with new_client() as client:
         await do_login(client, f"sd_{uid}")
         assert (await client.post("/api/assets", json=_market_asset(aid))).status_code == 201
@@ -107,7 +107,7 @@ async def test_currency_whitelist(prepared_db, register_user, do_login):  # noqa
     async with new_client() as client:
         await do_login(client, f"cw_{uid}")
         resp = await client.post(
-            "/api/assets", json=dict(_market_asset(f"EU_{uid}"), currency="EUR")
+            "/api/assets", json=dict(_market_asset(f"EU_{uid}.SH"), currency="EUR")
         )
         assert resp.status_code == 422
         assert "EUR" in resp.json()["detail"][0]["msg"] or "EUR" in str(resp.json())
