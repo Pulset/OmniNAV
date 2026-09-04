@@ -10,7 +10,7 @@ services:
     restart: unless-stopped
     # 仅作行情缓存与告警去重，数据可丢，不开持久化
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,10 +23,10 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      - '8000:8000'
     # host.docker.internal → 宿主机（NAS 本机）的 PostgreSQL
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - 'host.docker.internal:host-gateway'
     environment:
       # 指向 NAS 已有的 PostgreSQL；若是 NAS 上另一个容器且未发布端口，
       # 改为与它加入同一 docker 网络后直接填容器名
@@ -40,6 +40,6 @@ services:
       # 前置 HTTPS（反向代理/Tunnel）后改为 true，否则登录 Cookie 不会带 Secure
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       # 家宽访问 Yahoo（yfinance）需代理时取消注释；AkShare 会自动绕过代理直连国内源
-      # HTTPS_PROXY: ${HTTPS_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
       # 反代之后务必改成 * 或代理的容器 IP，否则登录限速按代理 IP 计数（uvicorn 原生读取此变量）
       FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
