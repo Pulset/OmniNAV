@@ -48,8 +48,8 @@ export function Holdings() {
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-slate-800 bg-card-bg">
-        <table className="w-full text-sm">
-          <thead>
+        <table className="w-full min-w-[760px] text-sm">
+          <thead className="[&_th]:whitespace-nowrap">
             <tr className="border-b border-slate-800 text-left text-xs text-slate-500">
               <th className="px-4 py-3">标的</th>
               <th className="px-4 py-3">类别</th>

@@ -127,7 +127,7 @@ export function Transactions() {
             </button>
           )}
         </div>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
           <div>
             <label className="mb-1 block text-xs text-slate-500">资产</label>
             <select
@@ -203,7 +203,7 @@ export function Transactions() {
               placeholder="0"
             />
           </div>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <label className="mb-1 block text-xs text-slate-500">备注</label>
             <input
               className={inputCls}
@@ -234,8 +234,8 @@ export function Transactions() {
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-slate-800 bg-card-bg">
-        <table className="w-full text-sm">
-          <thead>
+        <table className="w-full min-w-[820px] text-sm">
+          <thead className="[&_th]:whitespace-nowrap">
             <tr className="border-b border-slate-800 text-left text-xs text-slate-500">
               <th className="px-4 py-3">日期</th>
               <th className="px-4 py-3">类型</th>

@@ -27,7 +27,7 @@ export function Login({ onLogin }: { onLogin: (user: User) => void }) {
   }
 
   return (
-    <div className="flex h-full items-center justify-center">
+    <div className="flex h-full items-center justify-center p-4">
       <div className="w-full max-w-sm rounded-xl border border-slate-800 bg-card-bg p-6">
         <div className="mb-6 flex items-center gap-2">
           <TrendingUp className="h-6 w-6 text-brand-primary" />

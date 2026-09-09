@@ -76,7 +76,7 @@ export function Users() {
         <h3 className="mb-3 flex items-center gap-1.5 text-sm font-medium text-slate-300">
           <UserPlus className="h-4 w-4" /> 新建账号
         </h3>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-4">
           <input
             className={inputCls}
             placeholder="用户名"
@@ -108,9 +108,9 @@ export function Users() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-800 bg-card-bg p-4">
-        <table className="w-full text-sm">
-          <thead>
+      <div className="overflow-x-auto rounded-xl border border-slate-800 bg-card-bg p-4">
+        <table className="w-full min-w-[640px] text-sm">
+          <thead className="[&_th]:whitespace-nowrap">
             <tr className="border-b border-slate-800 text-left text-xs text-slate-500">
               <th className="py-2">用户名</th>
               <th className="py-2">角色</th>

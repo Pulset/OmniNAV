@@ -79,8 +79,9 @@ export function Review() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="overflow-hidden rounded-xl border border-slate-800 bg-card-bg lg:col-span-2">
-          <table className="w-full text-sm">
-            <thead>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-sm">
+              <thead className="[&_th]:whitespace-nowrap">
               <tr className="border-b border-slate-800 text-left text-xs text-slate-500">
                 <th className="px-4 py-3">日期</th>
                 <th className="px-4 py-3 text-right">净值</th>
@@ -121,6 +122,7 @@ export function Review() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
 
         <div className="rounded-xl border border-slate-800 bg-card-bg p-4">

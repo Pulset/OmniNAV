@@ -153,7 +153,7 @@ export function Settings() {
           <h3 className="mb-3 flex items-center gap-1.5 text-sm font-medium text-slate-300">
             <Plus className="h-4 w-4" /> 告警规则
           </h3>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <select
               className={inputCls}
               value={ruleForm.rule_type}
@@ -256,7 +256,7 @@ export function Settings() {
                 暂无 MANUAL_NAV 估值类型的资产
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <select
                   className={inputCls}
                   value={navForm.asset_id}
@@ -327,7 +327,7 @@ export function Settings() {
             <h3 className="mb-3 flex items-center gap-1.5 text-sm font-medium text-slate-300">
               <KeyRound className="h-4 w-4" /> 修改密码
             </h3>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <input
                 type="password"
                 className={inputCls}
@@ -368,7 +368,7 @@ export function Settings() {
                   setNotifyForm({ ...notifyForm, feishu_webhook_url: e.target.value })
                 }
               />
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <input
                   className={inputCls}
                   placeholder="Telegram Bot Token"

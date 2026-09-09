@@ -3,13 +3,14 @@ import {
   Layers,
   LayoutDashboard,
   LogOut,
+  Menu,
   ReceiptText,
   Settings2,
   TrendingUp,
   Users,
   Wallet,
 } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { api } from '../api/client'
 import type { User } from '../api/types'
 import { cn } from '../lib/format'
@@ -40,6 +41,12 @@ interface Props {
 
 export function Layout({ page, onNavigate, user, onLogout, children }: Props) {
   const { baseCurrency, setBaseCurrency } = useSettings()
+  const [drawerOpen, setDrawerOpen] = useState(false)
+
+  const go = (key: PageKey) => {
+    onNavigate(key)
+    setDrawerOpen(false)
+  }
 
   const logout = async () => {
     try {
@@ -47,6 +54,7 @@ export function Layout({ page, onNavigate, user, onLogout, children }: Props) {
     } catch {
       /* 会话已失效也照常回到登录页 */
     }
+    setDrawerOpen(false)
     onLogout()
   }
 
@@ -59,8 +67,37 @@ export function Layout({ page, onNavigate, user, onLogout, children }: Props) {
     )
 
   return (
-    <div className="flex h-full">
-      <aside className="flex w-52 shrink-0 flex-col border-r border-slate-800 bg-card-bg/60">
+    <div className="flex h-full flex-col md:flex-row">
+      {/* 移动端顶栏：汉堡菜单 + Logo */}
+      <header className="flex items-center justify-between border-b border-slate-800 bg-card-bg/60 px-4 py-3 md:hidden">
+        <button
+          onClick={() => setDrawerOpen(true)}
+          aria-label="打开菜单"
+          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-slate-200"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <div className="flex items-center gap-2">
+          <TrendingUp className="h-5 w-5 text-brand-primary" />
+          <span className="font-bold tracking-wide">OmniNAV</span>
+        </div>
+        <div className="w-8" />
+      </header>
+
+      {/* 抽屉遮罩 */}
+      {drawerOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          onClick={() => setDrawerOpen(false)}
+        />
+      )}
+
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-40 flex w-52 shrink-0 flex-col border-r border-slate-800 bg-card-bg transition-transform duration-200 md:static md:translate-x-0',
+          drawerOpen ? 'translate-x-0' : '-translate-x-full',
+        )}
+      >
         <div className="flex items-center gap-2 px-5 py-5">
           <TrendingUp className="h-6 w-6 text-brand-primary" />
           <div>
@@ -71,14 +108,14 @@ export function Layout({ page, onNavigate, user, onLogout, children }: Props) {
 
         <nav className="mt-2 flex flex-col gap-1 px-3">
           {NAV_ITEMS.map(({ key, label, icon: Icon }) => (
-            <button key={key} onClick={() => onNavigate(key)} className={navButtonCls(page === key)}>
+            <button key={key} onClick={() => go(key)} className={navButtonCls(page === key)}>
               <Icon className="h-4 w-4" />
               {label}
             </button>
           ))}
           {user.role === 'admin' &&
             ADMIN_NAV_ITEMS.map(({ key, label, icon: Icon }) => (
-              <button key={key} onClick={() => onNavigate(key)} className={navButtonCls(page === key)}>
+              <button key={key} onClick={() => go(key)} className={navButtonCls(page === key)}>
                 <Icon className="h-4 w-4" />
                 {label}
               </button>
@@ -123,7 +160,7 @@ export function Layout({ page, onNavigate, user, onLogout, children }: Props) {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto p-6">{children}</main>
+      <main className="min-w-0 flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
     </div>
   )
 }
