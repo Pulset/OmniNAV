@@ -2,7 +2,7 @@ export type AssetClass = 'STOCK' | 'ETF' | 'WEALTH' | 'CASH'
 export type Market = 'CN' | 'HK' | 'US' | 'GLOBAL'
 export type ValuationType = 'MARKET' | 'FIXED_YIELD' | 'MANUAL_NAV' | 'CASH'
 export type TransType = 'BUY' | 'SELL' | 'DEPOSIT' | 'WITHDRAW' | 'DIVIDEND'
-export type RuleType = 'DAILY_PCT_CHANGE' | 'DRAWDOWN'
+export type RuleType = 'DAILY_PCT_CHANGE' | 'DAILY_GAIN' | 'DAILY_LOSS' | 'DRAWDOWN'
 export type BaseCurrency = 'CNY' | 'USD'
 export type UserRole = 'admin' | 'member'
 

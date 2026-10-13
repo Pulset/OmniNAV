@@ -53,7 +53,7 @@ export function Settings() {
     try {
       await api.post('/alert-rules', {
         rule_type: ruleForm.rule_type,
-        asset_id: ruleForm.rule_type === 'DAILY_PCT_CHANGE' ? ruleForm.asset_id : null,
+        asset_id: ruleForm.rule_type !== 'DRAWDOWN' ? ruleForm.asset_id : null,
         threshold: parseFloat(ruleForm.threshold),
       })
       setMsg({ ok: true, text: '规则已添加' })
@@ -161,10 +161,12 @@ export function Settings() {
                 setRuleForm({ ...ruleForm, rule_type: e.target.value as RuleType })
               }
             >
-              <option value="DAILY_PCT_CHANGE">单日涨跌幅</option>
+              <option value="DAILY_PCT_CHANGE">单日涨跌幅（±）</option>
+              <option value="DAILY_GAIN">单日涨幅</option>
+              <option value="DAILY_LOSS">单日跌幅</option>
               <option value="DRAWDOWN">组合回撤</option>
             </select>
-            {ruleForm.rule_type === 'DAILY_PCT_CHANGE' ? (
+            {ruleForm.rule_type !== 'DRAWDOWN' ? (
               <select
                 className={inputCls}
                 value={ruleForm.asset_id}
@@ -195,7 +197,7 @@ export function Settings() {
                 onClick={() => void addRule()}
                 disabled={
                   !ruleForm.threshold ||
-                  (ruleForm.rule_type === 'DAILY_PCT_CHANGE' && !ruleForm.asset_id)
+                  (ruleForm.rule_type !== 'DRAWDOWN' && !ruleForm.asset_id)
                 }
                 className="shrink-0 rounded-lg bg-brand-primary px-3 text-sm font-medium text-white disabled:opacity-40"
               >
@@ -217,7 +219,11 @@ export function Settings() {
                   <span className="text-slate-300">
                     {r.rule_type === 'DAILY_PCT_CHANGE'
                       ? `${r.asset_id} 单日 ±${(parseFloat(r.threshold) * 100).toFixed(1)}%`
-                      : `组合回撤 ≥ ${(parseFloat(r.threshold) * 100).toFixed(1)}%`}
+                      : r.rule_type === 'DAILY_GAIN'
+                        ? `${r.asset_id} 单日涨幅 ≥ ${(parseFloat(r.threshold) * 100).toFixed(1)}%`
+                        : r.rule_type === 'DAILY_LOSS'
+                          ? `${r.asset_id} 单日跌幅 ≥ ${(parseFloat(r.threshold) * 100).toFixed(1)}%`
+                          : `组合回撤 ≥ ${(parseFloat(r.threshold) * 100).toFixed(1)}%`}
                   </span>
                   <span
                     className={

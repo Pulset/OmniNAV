@@ -37,7 +37,17 @@ class TransType(StrEnum):
 
 class RuleType(StrEnum):
     DAILY_PCT_CHANGE = "DAILY_PCT_CHANGE"
+    DAILY_GAIN = "DAILY_GAIN"
+    DAILY_LOSS = "DAILY_LOSS"
     DRAWDOWN = "DRAWDOWN"
+
+
+# 按资产评估的单日涨跌幅类规则（PCT_CHANGE 为 ±对称，GAIN/LOSS 为单方向）
+DAILY_RULE_TYPES = (
+    RuleType.DAILY_PCT_CHANGE,
+    RuleType.DAILY_GAIN,
+    RuleType.DAILY_LOSS,
+)
 
 
 # 组合级外部现金流符号：买入/入金为正（外部资金进入），卖出/出金为负；

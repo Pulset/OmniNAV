@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.core.enums import RuleType
+from app.core.enums import DAILY_RULE_TYPES, RuleType
 
 
 class AlertRuleBase(BaseModel):
@@ -12,8 +12,8 @@ class AlertRuleBase(BaseModel):
 
     @model_validator(mode="after")
     def check_compat(self) -> "AlertRuleBase":
-        if self.rule_type == RuleType.DAILY_PCT_CHANGE and not self.asset_id:
-            raise ValueError("DAILY_PCT_CHANGE 规则必须指定 asset_id")
+        if self.rule_type in DAILY_RULE_TYPES and not self.asset_id:
+            raise ValueError(f"{self.rule_type} 规则必须指定 asset_id")
         if self.rule_type == RuleType.DRAWDOWN and self.asset_id:
             raise ValueError("DRAWDOWN 规则作用于组合整体，不能指定 asset_id")
         return self

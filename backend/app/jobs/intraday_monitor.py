@@ -14,7 +14,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import SessionLocal
+from app.core.enums import DAILY_RULE_TYPES, RuleType
 from app.models import DimAsset, FactTransaction, SysAlertRule, SysUser
+from app.services.alerts import daily_hit
 from app.services.market.cache import QuoteCache
 from app.services.nav import ZERO
 from app.services.notify import notify_user
@@ -68,7 +70,7 @@ async def _monitor_for_user(
                 select(SysAlertRule).where(
                     SysAlertRule.user_id == user.id,
                     SysAlertRule.is_active.is_(True),
-                    SysAlertRule.rule_type == "DAILY_PCT_CHANGE",
+                    SysAlertRule.rule_type.in_(DAILY_RULE_TYPES),
                     SysAlertRule.asset_id.is_not(None),
                 )
             )
@@ -120,12 +122,16 @@ async def _monitor_for_user(
             continue
         pct = (price / prev - 1).quantize(Q4, ROUND_HALF_UP)
         threshold = Decimal(rule.threshold)
-        if abs(pct) >= threshold:
+        if daily_hit(rule.rule_type, pct, threshold):
+            label = {
+                RuleType.DAILY_GAIN: f"涨幅阈值 {threshold:.0%}",
+                RuleType.DAILY_LOSS: f"跌幅阈值 {threshold:.0%}",
+            }.get(rule.rule_type, f"阈值 ±{threshold:.0%}")
             locked = await cache.try_lock(f"intraday:{user.id}:{asset_id}")
             if locked:
                 alerts.append(
                     f"{asset.name}({asset_id}) 盘中 {pct:+.2%}，"
-                    f"触发阈值 ±{threshold:.0%}（现价 {price}）"
+                    f"触发{label}（现价 {price}）"
                 )
 
     if alerts:

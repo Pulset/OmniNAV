@@ -24,17 +24,19 @@ async def list_snapshots(
     user: SysUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    # 超 limit 时保留最新的 N 条：DESC 取窗口后反转为 ASC，保证输出仍为时间升序
     q = (
         select(FactPortfolioSnapshot)
         .where(FactPortfolioSnapshot.user_id == user.id)
-        .order_by(FactPortfolioSnapshot.snapshot_date.asc())
+        .order_by(FactPortfolioSnapshot.snapshot_date.desc())
         .limit(limit)
     )
     if date_from:
         q = q.where(FactPortfolioSnapshot.snapshot_date >= date_from)
     if date_to:
         q = q.where(FactPortfolioSnapshot.snapshot_date <= date_to)
-    return (await session.execute(q)).scalars().all()
+    rows = (await session.execute(q)).scalars().all()
+    return list(reversed(rows))
 
 
 @router.patch("/{snapshot_date}", response_model=SnapshotOut)
