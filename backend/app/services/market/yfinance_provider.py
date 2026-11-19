@@ -17,8 +17,8 @@ def _yf_symbol(symbol: str) -> str:
     if symbol.endswith(".US"):
         return symbol.removesuffix(".US")
     if symbol.endswith(".HK"):
-        # Yahoo 港股代码不带前导零：00700.HK -> 0700.HK
-        return f"{int(symbol.removesuffix('.HK'))}.HK"
+        # Yahoo 港股代码固定 4 位数字：00700.HK -> 0700.HK
+        return f"{int(symbol.removesuffix('.HK')):04d}.HK"
     return symbol
 
 
