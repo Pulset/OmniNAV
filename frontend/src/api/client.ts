@@ -50,3 +50,38 @@ export const api = {
     request<T>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 }
+
+// 流式 POST：逐段回调 text/plain 响应增量（AI 问答流式回答）。
+// 不走 request<T>：它按 JSON 解析整体响应，无法流式。
+export async function postStream(
+  path: string,
+  body: unknown,
+  onDelta: (text: string) => void,
+): Promise<void> {
+  const resp = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  })
+  if (!resp.ok) {
+    if (resp.status === 401) onUnauthorized?.()
+    let detail = `${resp.status} ${resp.statusText}`
+    try {
+      const data = await resp.json()
+      if (data?.detail) detail = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail)
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(resp.status, detail)
+  }
+  if (!resp.body) throw new ApiError(resp.status, '响应无内容流')
+  const reader = resp.body.getReader()
+  const decoder = new TextDecoder()
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    const text = decoder.decode(value, { stream: true })
+    if (text) onDelta(text)
+  }
+}

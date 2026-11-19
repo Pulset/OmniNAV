@@ -4,6 +4,7 @@ from app.api.routes import (
     alerts,
     assets,
     auth,
+    chat,
     health,
     market,
     metrics,
@@ -24,4 +25,5 @@ all_routers = [
     alerts.router,
     metrics.router,
     advice.router,
+    chat.router,
 ]

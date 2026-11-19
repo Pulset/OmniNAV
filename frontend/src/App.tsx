@@ -8,6 +8,7 @@ import { Holdings } from './pages/Holdings'
 import { Login } from './pages/Login'
 import { Transactions } from './pages/Transactions'
 import { Advice } from './pages/Advice'
+import { Chat } from './pages/Chat'
 import { Review } from './pages/Review'
 import { Settings } from './pages/Settings'
 import { Users } from './pages/Users'
@@ -18,6 +19,7 @@ const PAGES: Record<PageKey, () => React.JSX.Element> = {
   holdings: Holdings,
   transactions: Transactions,
   advice: Advice,
+  chat: Chat,
   review: Review,
   settings: Settings,
   users: Users,

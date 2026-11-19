@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  MessagesSquare,
   ReceiptText,
   Settings2,
   Sparkles,
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { key: 'holdings', label: '持仓', icon: Wallet },
   { key: 'transactions', label: '流水', icon: ReceiptText },
   { key: 'advice', label: 'AI 内参', icon: Sparkles },
+  { key: 'chat', label: 'AI 问答', icon: MessagesSquare },
   { key: 'review', label: '复盘', icon: BookOpen },
   { key: 'settings', label: '设置', icon: Settings2 },
 ] as const

@@ -5,6 +5,7 @@ from app.schemas.advice import (
 )
 from app.schemas.alert_rule import AlertRuleCreate, AlertRuleOut, AlertRuleUpdate
 from app.schemas.asset import AssetCreate, AssetOut, AssetUpdate
+from app.schemas.chat import ChatAskIn, ChatMessageOut
 from app.schemas.market import ManualNavIn, MarketPriceOut
 from app.schemas.snapshot import (
     NavHistoryPoint,
@@ -46,4 +47,6 @@ __all__ = [
     "AdviceGenerateIn",
     "AdviceReportOut",
     "NewsArticleOut",
+    "ChatAskIn",
+    "ChatMessageOut",
 ]
