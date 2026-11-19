@@ -2,7 +2,7 @@
 
 Personal Multi-Asset Portfolio & Review System —— 个人全资产投资分析与复盘系统
 
-跨市场（A股 / 港股 / 美股 / 全球ETF / 银行理财 / 多币种现金）汇总记账、基金份额法单位净值核算、周期复盘与告警推送。
+跨市场（A股 / 港股 / 美股 / 全球ETF / 银行理财 / 多币种现金）汇总记账、基金份额法单位净值核算、周期复盘与告警推送、三时点 AI 投资内参（盘前/午间/晚间，基于当日新闻与持仓生成）。
 
 - 产品需求：[docs/PRD.md](docs/PRD.md)
 - 技术架构：[docs/TechnicalArchitecture.md](docs/TechnicalArchitecture.md)
@@ -19,6 +19,7 @@ FastAPI (Python 3.14) + Pydantic v2 + SQLAlchemy 2.0 (async)
 PostgreSQL 18 (核心存储) · Redis 8 (行情缓存/告警去重)
         │
 APScheduler: 22:00 A股日终简报 / 06:00 终局清算 / 盘中 15min 监控
+             / 08:45·11:45·21:30 AI 投资内参（新闻→LLM→推送，可溯源）
 AkShare + yfinance + Frankfurter (三方免费行情/汇率) → 飞书 / Telegram 推送
 ```
 

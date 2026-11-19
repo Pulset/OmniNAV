@@ -1,3 +1,8 @@
+from app.schemas.advice import (
+    AdviceGenerateIn,
+    AdviceReportOut,
+    NewsArticleOut,
+)
 from app.schemas.alert_rule import AlertRuleCreate, AlertRuleOut, AlertRuleUpdate
 from app.schemas.asset import AssetCreate, AssetOut, AssetUpdate
 from app.schemas.market import ManualNavIn, MarketPriceOut
@@ -38,4 +43,7 @@ __all__ = [
     "UserOut",
     "NotificationsIn",
     "NotificationsOut",
+    "AdviceGenerateIn",
+    "AdviceReportOut",
+    "NewsArticleOut",
 ]

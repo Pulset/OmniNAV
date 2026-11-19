@@ -26,6 +26,15 @@ class Settings(BaseSettings):
     # 盘中行情缓存 TTL（秒），防止外部 API 限流
     quote_cache_ttl_seconds: int = 600
 
+    # AI 投资内参（LLM 走 OpenAI 兼容协议，base_url/model 可切换厂商）
+    news_advisor_enabled: bool = True
+    llm_base_url: str | None = None
+    llm_api_key: str | None = None
+    llm_model: str | None = None
+    llm_timeout_seconds: int = 90
+    llm_max_tokens: int = 2000
+    news_window_max_items: int = 60
+
     # 首管理员 seed（sys_users 为空时由迁移 0003 创建；不开放公开注册）
     init_admin_username: str = "admin"
     init_admin_password: str | None = None

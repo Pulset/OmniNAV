@@ -4,7 +4,6 @@
 （intraday:{user_id}:{asset_id}），单用户失败不中断他人。
 """
 
-import asyncio
 import logging
 from datetime import datetime, time, timedelta
 from decimal import Decimal, ROUND_HALF_UP
@@ -18,6 +17,7 @@ from app.core.enums import DAILY_RULE_TYPES, RuleType
 from app.models import DimAsset, FactTransaction, SysAlertRule, SysUser
 from app.services.alerts import daily_hit
 from app.services.market.cache import QuoteCache
+from app.services.market.realtime import fetch_realtime
 from app.services.nav import ZERO
 from app.services.notify import notify_user
 from app.services.portfolio import aggregate_holdings
@@ -30,31 +30,6 @@ Q4 = Decimal("0.0001")
 
 _WINDOW_START = time(9, 30)
 _WINDOW_END = time(23, 0)
-
-
-async def _fetch_realtime(symbol: str) -> Decimal | None:
-    """实时价：A股走 AkShare 买卖五档快照，港股/美股走 yfinance。"""
-    if symbol.endswith((".SH", ".SZ")):
-        def _ak():
-            import akshare as ak
-
-            code = symbol.split(".")[0]
-            df = ak.stock_bid_ask_em(symbol=code)
-            row = df[df["item"] == "最新"]
-            if not row.empty:
-                return Decimal(str(row.iloc[0]["value"]))
-            return None
-
-        try:
-            return await asyncio.to_thread(_ak)
-        except Exception:
-            logger.debug("AkShare 实时 %s 失败", symbol, exc_info=True)
-            return None
-
-    from app.services.market.yfinance_provider import YFinanceProvider
-
-    provider = YFinanceProvider()
-    return await asyncio.to_thread(provider.fetch_realtime, symbol)
 
 
 async def _monitor_for_user(
@@ -110,7 +85,7 @@ async def _monitor_for_user(
         asset = assets[asset_id]
         price = await cache.get_quote(asset_id)
         if price is None:
-            price = await _fetch_realtime(asset_id)
+            price = await fetch_realtime(asset_id)
         if price is None:
             continue
         await cache.set_quote(asset_id, price)

@@ -1,5 +1,6 @@
 from app.api.routes import (
     admin,
+    advice,
     alerts,
     assets,
     auth,
@@ -22,4 +23,5 @@ all_routers = [
     snapshots.router,
     alerts.router,
     metrics.router,
+    advice.router,
 ]

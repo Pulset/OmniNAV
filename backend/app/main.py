@@ -30,7 +30,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         scheduler = build_scheduler()
         scheduler.start()
-        logger.info("APScheduler 已启动（22:00 简报 / 06:00 清算 / 盘中监控）")
+        logger.info(
+            "APScheduler 已启动（06:00 清算 / 盘中监控 / 22:00 简报"
+            " / 三时点 AI 内参[LLM 配置齐全时]）"
+        )
     yield
     if scheduler:
         scheduler.shutdown(wait=False)

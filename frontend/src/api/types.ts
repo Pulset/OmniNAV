@@ -120,3 +120,53 @@ export interface MetricsSummary {
   beta_vs_csi300: number | null
   days: number
 }
+
+export type AdviceSlot = 'morning' | 'midday' | 'evening'
+
+export interface HotTopic {
+  topic: string
+  direction: 'positive' | 'negative' | 'neutral'
+  affected: string[]
+  reasoning: string
+  news_ref: number[]
+}
+
+export interface PortfolioImpact {
+  symbol: string
+  name: string
+  share_pct: number | null
+  stance: 'hold' | 'watch' | 'consider_add' | 'consider_reduce'
+  comment: string
+  news_ref: number[]
+}
+
+export interface AdvicePayload {
+  market_summary: string
+  hot_topics: HotTopic[]
+  portfolio_impact: PortfolioImpact[]
+  action_items: string[]
+  next_focus: string
+  risk_warnings: string[]
+  disclaimer: string
+}
+
+export interface AdviceReport {
+  id: number
+  trade_date: string
+  slot: AdviceSlot
+  model: string
+  prompt_version: string
+  payload: AdvicePayload
+  cited_article_ids: number[]
+  token_usage: Record<string, number>
+  created_at: string
+}
+
+export interface NewsArticle {
+  id: number
+  source: string
+  title: string
+  summary: string | null
+  url: string | null
+  published_at: string
+}
